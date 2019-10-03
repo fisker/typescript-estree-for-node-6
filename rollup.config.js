@@ -19,6 +19,5 @@ export default {
       exclude: [/\/core-js\//]
     }),
   ],
-  context: "new Function('return this')()",
   external: ['typescript']
 }
