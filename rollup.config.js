@@ -12,10 +12,13 @@ export default {
     exports: 'named'
   },
   plugins: [
-    babel(),
     commonjs(),
     resolve(),
     json(),
+    babel({
+      exclude: [/\/core-js\//]
+    }),
   ],
-  externals: builtins,
+  context: "new Function('return this')()",
+  external: ['typescript']
 }
