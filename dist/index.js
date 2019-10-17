@@ -6,8 +6,8 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 var path$1 = _interopDefault(require('path'));
 var typescript = _interopDefault(require('typescript'));
-var glob = _interopDefault(require('glob'));
-var chokidar = _interopDefault(require('chokidar'));
+var glob = {sync() {}};
+var chokidar = {watch() {}};
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -9068,7 +9068,9 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
         // store the watch callback so we can trigger an update with eslint's content
 
 
-        watchCompilerHost.watchFile = function (fileName, callback, interval) {
+        
+  watchCompilerHost.watchFile = (() => {}) ||
+  function (fileName, callback, interval) {
           // specifically (and separately) watch the tsconfig file
           // this allows us to react to changes in the tsconfig's include/exclude options
           var watcher = null;
@@ -9111,7 +9113,9 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
         // if we don't then typescript will act like they don't exist.
 
 
-        watchCompilerHost.watchDirectory = function (dirPath, callback, recursive) {
+        
+  watchCompilerHost.watchDirectory = (() => {}) ||
+  function (dirPath, callback, recursive) {
           var watcher = watch(dirPath, {
             depth: recursive ? 0 : undefined,
             interval: 250
