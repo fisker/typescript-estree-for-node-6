@@ -14,7 +14,9 @@ export default {
   },
   plugins: [
     commonjs(),
-    resolve(),
+    resolve({
+      preferBuiltins: true,
+    }),
     json(),
     babel({
       exclude: [/\/core-js\//],
