@@ -1,18 +1,23 @@
 const path = require('path')
-const readPkgUp = require('read-pkg-up')
+const readPackageUp = require('read-pkg-up')
 const writePackage = require('write-pkg')
 
-;(async () => {
+;
+
+(async () => {
   const main = require.resolve('@typescript-eslint/typescript-estree')
   const cwd = path.dirname(main)
   const {
     packageJson: {version},
-  } = await readPkgUp({cwd, normalize: false})
+  } = await readPackageUp({cwd, normalize: false})
 
-  const {packageJson} = await readPkgUp({ normalize: false})
+  const {packageJson} = await readPackageUp({normalize: false})
 
-  await writePackage({
-    ...packageJson,
-    version
-  }, { normalize: false})
+  await writePackage(
+    {
+      ...packageJson,
+      version,
+    },
+    {normalize: false}
+  )
 })()
