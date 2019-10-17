@@ -7,12 +7,12 @@ const writePackage = require('write-pkg')
   const cwd = path.dirname(main)
   const {
     packageJson: {version},
-  } = await readPkgUp({cwd})
+  } = await readPkgUp({cwd, normalize: false})
 
-  const {packageJson} = await readPkgUp()
+  const {packageJson} = await readPkgUp({ normalize: false})
 
   await writePackage({
     ...packageJson,
     version
-  })
+  }, { normalize: false})
 })()

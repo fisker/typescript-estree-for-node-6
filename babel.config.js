@@ -1,8 +1,8 @@
 'use strict';
 
 module.exports = {
-    sourceMaps: true,
-  "presets": [
+  sourceMaps: true,
+  presets: [
     [
       "@babel/preset-env",
       {
