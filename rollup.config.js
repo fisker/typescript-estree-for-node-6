@@ -3,21 +3,24 @@ import commonjs from 'rollup-plugin-commonjs'
 import resolve from 'rollup-plugin-node-resolve'
 import json from 'rollup-plugin-json'
 import builtins from 'builtin-modules'
+import replace from 'rollup-plugin-replace'
 
 export default {
   input: require.resolve('@typescript-eslint/typescript-estree'),
   output: {
     format: 'commonjs',
-    file: 'index.js',
-    exports: 'named'
+    file: 'dist/index.js',
+    exports: 'named',
   },
   plugins: [
     commonjs(),
-    resolve(),
+    resolve({
+      preferBuiltins: true,
+    }),
     json(),
     babel({
-      exclude: [/\/core-js\//]
+      exclude: [/\/core-js\//],
     }),
   ],
-  external: ['typescript']
+  external: ['typescript', 'chokidar', '@microsoft/typescript-etw', 'glob'],
 }
