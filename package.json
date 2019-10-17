@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "run-p build:*",
-    "build:js": "webpack",
+    "build:js": "rollup --config",
     "build:package-json": "node ./scripts/sync-version.js",
     "format": "run-p format:*",
     "format:eslint": "yarn lint:eslint --fix",
@@ -35,7 +35,6 @@
     "@types/mocha": "5.2.7",
     "@typescript-eslint/experimental-utils": "2.4.0",
     "@typescript-eslint/typescript-estree": "2.4.0",
-    "babel-loader": "8.0.6",
     "builtin-modules": "3.1.0",
     "core-js": "3",
     "cz-conventional-changelog": "3.0.2",
@@ -50,8 +49,11 @@
     "regenerator-runtime": "0.13.3",
     "ts-jest": "24.1.0",
     "typescript": "3.7.0-dev.20191017",
-    "webpack": "4.41.2",
-    "webpack-cli": "3.3.9",
+    "rollup": "^1.22.0",
+    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-json": "^4.0.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
     "write-pkg": "4.0.0"
   },
   "config": {
