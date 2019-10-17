@@ -3,7 +3,7 @@ const babelConfig = require('./babel.config')
 
 const build = {
   mode: 'production', // "production" | "development" | "none"
-  entry: require.resolve('@typescript-eslint/typescript-estree'),
+  entry: path.resolve(__dirname, 'src/index.js'),
   module: {
     rules: [
       {

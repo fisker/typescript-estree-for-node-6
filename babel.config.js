@@ -4,13 +4,15 @@ module.exports = {
     [
       '@babel/preset-env',
       {
-        useBuiltIns: 'usage',
+        // useBuiltIns: 'usage',
         debug: true,
         corejs: 3,
         targets: {
           node: '4',
         },
+        "modules": 'commonjs',
       },
     ],
   ],
+  "sourceType": "unambiguous"
 }
