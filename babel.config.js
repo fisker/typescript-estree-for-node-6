@@ -10,9 +10,8 @@ module.exports = {
         targets: {
           node: '4',
         },
-        "modules": false,
+        modules: false,
       },
     ],
   ],
-  "sourceType": "unambiguous"
 }

@@ -23,6 +23,6 @@ code = code.replace(`_interopDefault(require('glob'))`, '{sync() {}}')
 // fake chokidar
 code = code.replace(`_interopDefault(require('chokidar'))`, '{watch() {}}')
 // remove `eslint-disable` comment
-code = code.replace(/eslint-disable/g, '')
+code = code.replace(/eslint-disable/g, 'eslint--disable')
 
 fs.writeFileSync(file, code)

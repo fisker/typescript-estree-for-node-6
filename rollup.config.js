@@ -2,8 +2,6 @@ import babel from 'rollup-plugin-babel'
 import commonjs from 'rollup-plugin-commonjs'
 import resolve from 'rollup-plugin-node-resolve'
 import json from 'rollup-plugin-json'
-import builtins from 'builtin-modules'
-import replace from 'rollup-plugin-replace'
 
 export default {
   input: require.resolve('@typescript-eslint/typescript-estree'),
