@@ -13,9 +13,7 @@ code = code.replace(
 )
 code = code.replace(
   'watchCompilerHost.watchDirectory = ',
-  `
-  watchCompilerHost.watchDirectory = (() => {}) ||
-  `
+  'watchCompilerHost.watchDirectory = (() => {}) ||'
 )
 
 // fake glob

@@ -9117,9 +9117,7 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
         // if we don't then typescript will act like they don't exist.
 
 
-        
-  watchCompilerHost.watchDirectory = (() => {}) ||
-  function (dirPath, callback, recursive) {
+        watchCompilerHost.watchDirectory = (() => {}) ||function (dirPath, callback, recursive) {
           var watcher = watch(dirPath, {
             depth: recursive ? 0 : undefined,
             interval: 250
