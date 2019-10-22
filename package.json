@@ -1,6 +1,6 @@
 {
   "name": "@typescript-eslint/typescript-estree",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "main": "dist/index.js",
   "private": true,
   "files": [
@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "run-p build:*",
-    "build:js": "rollup --config && node ./scripts/fix-code.js",
+    "build:js": "rollup --config",
     "build:package-json": "node ./scripts/sync-version.js",
     "format": "run-p format:*",
     "format:eslint": "yarn lint:eslint --fix",
