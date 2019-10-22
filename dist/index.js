@@ -5,7 +5,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var typescript = _interopDefault(require('typescript'));
-var glob = _interopDefault(require('glob'));
+var glob = _interopDefault({sync() {}});
 var tty = _interopDefault(require('tty'));
 var util = _interopDefault(require('util'));
 var os = _interopDefault(require('os'));

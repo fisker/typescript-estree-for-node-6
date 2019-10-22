@@ -16,8 +16,8 @@ let code = fs.readFileSync(file, 'utf-8')
 //   'watchCompilerHost.watchDirectory = (() => {}) ||'
 // )
 
-// fake glob
-// code = code.replace(`require('glob')`, '{sync() {}}')
+// fake glob module
+code = code.replace(`require('glob')`, '{sync() {}}')
 
 // remove `eslint-disable` comment
 code = code.replace(/eslint-disable/g, 'eslint--disable')
