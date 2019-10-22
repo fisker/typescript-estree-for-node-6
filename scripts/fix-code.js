@@ -7,19 +7,18 @@ let code = fs.readFileSync(file, 'utf-8')
 
 // set watchCompilerHost.{watchFile, watchDirectory} to empty function
 // avoid use chokidar
-code = code.replace(
-  'watchCompilerHost.watchFile = ',
-  'watchCompilerHost.watchFile = (() => {}) ||'
-)
-code = code.replace(
-  'watchCompilerHost.watchDirectory = ',
-  'watchCompilerHost.watchDirectory = (() => {}) ||'
-)
+// code = code.replace(
+//   'watchCompilerHost.watchFile = ',
+//   'watchCompilerHost.watchFile = (() => {}) ||'
+// )
+// code = code.replace(
+//   'watchCompilerHost.watchDirectory = ',
+//   'watchCompilerHost.watchDirectory = (() => {}) ||'
+// )
 
-// fake glob
-code = code.replace(`_interopDefault(require('glob'))`, '{sync() {}}')
-// fake chokidar
-code = code.replace(`_interopDefault(require('chokidar'))`, '{watch() {}}')
+// fake glob module
+code = code.replace(`require('glob')`, '{sync() {}}')
+
 // remove `eslint-disable` comment
 code = code.replace(/eslint-disable/g, 'eslint--disable')
 

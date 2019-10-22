@@ -4,10 +4,13 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var path$1 = _interopDefault(require('path'));
 var typescript = _interopDefault(require('typescript'));
-var glob = {sync() {}};
-var chokidar = {watch() {}};
+var glob = _interopDefault({sync() {}});
+var tty = _interopDefault(require('tty'));
+var util = _interopDefault(require('util'));
+var os = _interopDefault(require('os'));
+var path$1 = _interopDefault(require('path'));
+var fs = _interopDefault(require('fs'));
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -131,12 +134,12 @@ var has = function (it, key) {
   return hasOwnProperty.call(it, key);
 };
 
-var document = global_1.document;
+var document$1 = global_1.document;
 // typeof document.createElement is 'object' in old IE
-var EXISTS = isObject(document) && isObject(document.createElement);
+var EXISTS = isObject(document$1) && isObject(document$1.createElement);
 
 var documentCreateElement = function (it) {
-  return EXISTS ? document.createElement(it) : {};
+  return EXISTS ? document$1.createElement(it) : {};
 };
 
 // Thank's IE8 for his funny defineProperty
@@ -213,7 +216,7 @@ var shared = createCommonjsModule(function (module) {
 (module.exports = function (key, value) {
   return sharedStore[key] || (sharedStore[key] = value !== undefined ? value : {});
 })('versions', []).push({
-  version: '3.3.2',
+  version: '3.3.3',
   mode:  'global',
   copyright: '© 2019 Denis Pushkarev (zloirock.ru)'
 });
@@ -639,174 +642,6 @@ _export({ target: 'Array', proto: true, forced: FORCED }, {
   }
 });
 
-// `Object.keys` method
-// https://tc39.github.io/ecma262/#sec-object.keys
-var objectKeys = Object.keys || function keys(O) {
-  return objectKeysInternal(O, enumBugKeys);
-};
-
-// `Object.defineProperties` method
-// https://tc39.github.io/ecma262/#sec-object.defineproperties
-var objectDefineProperties = descriptors ? Object.defineProperties : function defineProperties(O, Properties) {
-  anObject(O);
-  var keys = objectKeys(Properties);
-  var length = keys.length;
-  var index = 0;
-  var key;
-  while (length > index) objectDefineProperty.f(O, key = keys[index++], Properties[key]);
-  return O;
-};
-
-var html = getBuiltIn('document', 'documentElement');
-
-var IE_PROTO = sharedKey('IE_PROTO');
-
-var PROTOTYPE = 'prototype';
-var Empty = function () { /* empty */ };
-
-// Create object with fake `null` prototype: use iframe Object with cleared prototype
-var createDict = function () {
-  // Thrash, waste and sodomy: IE GC bug
-  var iframe = documentCreateElement('iframe');
-  var length = enumBugKeys.length;
-  var lt = '<';
-  var script = 'script';
-  var gt = '>';
-  var js = 'java' + script + ':';
-  var iframeDocument;
-  iframe.style.display = 'none';
-  html.appendChild(iframe);
-  iframe.src = String(js);
-  iframeDocument = iframe.contentWindow.document;
-  iframeDocument.open();
-  iframeDocument.write(lt + script + gt + 'document.F=Object' + lt + '/' + script + gt);
-  iframeDocument.close();
-  createDict = iframeDocument.F;
-  while (length--) delete createDict[PROTOTYPE][enumBugKeys[length]];
-  return createDict();
-};
-
-// `Object.create` method
-// https://tc39.github.io/ecma262/#sec-object.create
-var objectCreate = Object.create || function create(O, Properties) {
-  var result;
-  if (O !== null) {
-    Empty[PROTOTYPE] = anObject(O);
-    result = new Empty();
-    Empty[PROTOTYPE] = null;
-    // add "__proto__" for Object.getPrototypeOf polyfill
-    result[IE_PROTO] = O;
-  } else result = createDict();
-  return Properties === undefined ? result : objectDefineProperties(result, Properties);
-};
-
-hiddenKeys[IE_PROTO] = true;
-
-var UNSCOPABLES = wellKnownSymbol('unscopables');
-var ArrayPrototype = Array.prototype;
-
-// Array.prototype[@@unscopables]
-// https://tc39.github.io/ecma262/#sec-array.prototype-@@unscopables
-if (ArrayPrototype[UNSCOPABLES] == undefined) {
-  createNonEnumerableProperty(ArrayPrototype, UNSCOPABLES, objectCreate(null));
-}
-
-// add a key to Array.prototype[@@unscopables]
-var addToUnscopables = function (key) {
-  ArrayPrototype[UNSCOPABLES][key] = true;
-};
-
-var $includes = arrayIncludes.includes;
-
-
-// `Array.prototype.includes` method
-// https://tc39.github.io/ecma262/#sec-array.prototype.includes
-_export({ target: 'Array', proto: true }, {
-  includes: function includes(el /* , fromIndex = 0 */) {
-    return $includes(this, el, arguments.length > 1 ? arguments[1] : undefined);
-  }
-});
-
-// https://tc39.github.io/ecma262/#sec-array.prototype-@@unscopables
-addToUnscopables('includes');
-
-var nativeAssign = Object.assign;
-
-// `Object.assign` method
-// https://tc39.github.io/ecma262/#sec-object.assign
-// should work with symbols and should have deterministic property order (V8 bug)
-var objectAssign = !nativeAssign || fails(function () {
-  var A = {};
-  var B = {};
-  // eslint--disable-next-line no-undef
-  var symbol = Symbol();
-  var alphabet = 'abcdefghijklmnopqrst';
-  A[symbol] = 7;
-  alphabet.split('').forEach(function (chr) { B[chr] = chr; });
-  return nativeAssign({}, A)[symbol] != 7 || objectKeys(nativeAssign({}, B)).join('') != alphabet;
-}) ? function assign(target, source) { // eslint--disable-line no-unused-vars
-  var T = toObject(target);
-  var argumentsLength = arguments.length;
-  var index = 1;
-  var getOwnPropertySymbols = objectGetOwnPropertySymbols.f;
-  var propertyIsEnumerable = objectPropertyIsEnumerable.f;
-  while (argumentsLength > index) {
-    var S = indexedObject(arguments[index++]);
-    var keys = getOwnPropertySymbols ? objectKeys(S).concat(getOwnPropertySymbols(S)) : objectKeys(S);
-    var length = keys.length;
-    var j = 0;
-    var key;
-    while (length > j) {
-      key = keys[j++];
-      if (!descriptors || propertyIsEnumerable.call(S, key)) T[key] = S[key];
-    }
-  } return T;
-} : nativeAssign;
-
-// `Object.assign` method
-// https://tc39.github.io/ecma262/#sec-object.assign
-_export({ target: 'Object', stat: true, forced: Object.assign !== objectAssign }, {
-  assign: objectAssign
-});
-
-var MATCH = wellKnownSymbol('match');
-
-// `IsRegExp` abstract operation
-// https://tc39.github.io/ecma262/#sec-isregexp
-var isRegexp = function (it) {
-  var isRegExp;
-  return isObject(it) && ((isRegExp = it[MATCH]) !== undefined ? !!isRegExp : classofRaw(it) == 'RegExp');
-};
-
-var notARegexp = function (it) {
-  if (isRegexp(it)) {
-    throw TypeError("The method doesn't accept regular expressions");
-  } return it;
-};
-
-var MATCH$1 = wellKnownSymbol('match');
-
-var correctIsRegexpLogic = function (METHOD_NAME) {
-  var regexp = /./;
-  try {
-    '/./'[METHOD_NAME](regexp);
-  } catch (e) {
-    try {
-      regexp[MATCH$1] = false;
-      return '/./'[METHOD_NAME](regexp);
-    } catch (f) { /* empty */ }
-  } return false;
-};
-
-// `String.prototype.includes` method
-// https://tc39.github.io/ecma262/#sec-string.prototype.includes
-_export({ target: 'String', proto: true, forced: !correctIsRegexpLogic('includes') }, {
-  includes: function includes(searchString /* , position = 0 */) {
-    return !!~String(requireObjectCoercible(this))
-      .indexOf(notARegexp(searchString), arguments.length > 1 ? arguments[1] : undefined);
-  }
-});
-
 var aFunction$1 = function (it) {
   if (typeof it != 'function') {
     throw TypeError(String(it) + ' is not a function');
@@ -1074,6 +909,15 @@ var inheritIfRequired = function ($this, dummy, Wrapper) {
   return $this;
 };
 
+var MATCH = wellKnownSymbol('match');
+
+// `IsRegExp` abstract operation
+// https://tc39.github.io/ecma262/#sec-isregexp
+var isRegexp = function (it) {
+  var isRegExp;
+  return isObject(it) && ((isRegExp = it[MATCH]) !== undefined ? !!isRegExp : classofRaw(it) == 'RegExp');
+};
+
 // `RegExp.prototype.flags` getter implementation
 // https://tc39.github.io/ecma262/#sec-get-regexp.prototype.flags
 var regexpFlags = function () {
@@ -1111,7 +955,7 @@ var getOwnPropertyNames = objectGetOwnPropertyNames.f;
 
 
 
-var MATCH$2 = wellKnownSymbol('match');
+var MATCH$1 = wellKnownSymbol('match');
 var NativeRegExp = global_1.RegExp;
 var RegExpPrototype = NativeRegExp.prototype;
 var re1 = /a/g;
@@ -1121,7 +965,7 @@ var re2 = /a/g;
 var CORRECT_NEW = new NativeRegExp(re1) !== re1;
 
 var FORCED$2 = descriptors && isForced_1('RegExp', (!CORRECT_NEW || fails(function () {
-  re2[MATCH$2] = false;
+  re2[MATCH$1] = false;
   // RegExp constructor can alter flags and IsRegExp works correct with @@match
   return NativeRegExp(re1) != re1 || NativeRegExp(re2) == re2 || NativeRegExp(re1, 'i') != '/a/i';
 })));
@@ -3395,6 +3239,69 @@ var isGlob = function isGlob(str, options) {
   return false;
 };
 
+// `Object.keys` method
+// https://tc39.github.io/ecma262/#sec-object.keys
+var objectKeys = Object.keys || function keys(O) {
+  return objectKeysInternal(O, enumBugKeys);
+};
+
+// `Object.defineProperties` method
+// https://tc39.github.io/ecma262/#sec-object.defineproperties
+var objectDefineProperties = descriptors ? Object.defineProperties : function defineProperties(O, Properties) {
+  anObject(O);
+  var keys = objectKeys(Properties);
+  var length = keys.length;
+  var index = 0;
+  var key;
+  while (length > index) objectDefineProperty.f(O, key = keys[index++], Properties[key]);
+  return O;
+};
+
+var html = getBuiltIn('document', 'documentElement');
+
+var IE_PROTO = sharedKey('IE_PROTO');
+
+var PROTOTYPE = 'prototype';
+var Empty = function () { /* empty */ };
+
+// Create object with fake `null` prototype: use iframe Object with cleared prototype
+var createDict = function () {
+  // Thrash, waste and sodomy: IE GC bug
+  var iframe = documentCreateElement('iframe');
+  var length = enumBugKeys.length;
+  var lt = '<';
+  var script = 'script';
+  var gt = '>';
+  var js = 'java' + script + ':';
+  var iframeDocument;
+  iframe.style.display = 'none';
+  html.appendChild(iframe);
+  iframe.src = String(js);
+  iframeDocument = iframe.contentWindow.document;
+  iframeDocument.open();
+  iframeDocument.write(lt + script + gt + 'document.F=Object' + lt + '/' + script + gt);
+  iframeDocument.close();
+  createDict = iframeDocument.F;
+  while (length--) delete createDict[PROTOTYPE][enumBugKeys[length]];
+  return createDict();
+};
+
+// `Object.create` method
+// https://tc39.github.io/ecma262/#sec-object.create
+var objectCreate = Object.create || function create(O, Properties) {
+  var result;
+  if (O !== null) {
+    Empty[PROTOTYPE] = anObject(O);
+    result = new Empty();
+    Empty[PROTOTYPE] = null;
+    // add "__proto__" for Object.getPrototypeOf polyfill
+    result[IE_PROTO] = O;
+  } else result = createDict();
+  return Properties === undefined ? result : objectDefineProperties(result, Properties);
+};
+
+hiddenKeys[IE_PROTO] = true;
+
 var nativeGetOwnPropertyNames = objectGetOwnPropertyNames.f;
 
 var toString$1 = {}.toString;
@@ -3458,8 +3365,8 @@ var setInternalState = internalState.set;
 var getInternalState = internalState.getterFor(SYMBOL);
 var ObjectPrototype$1 = Object[PROTOTYPE$1];
 var $Symbol = global_1.Symbol;
-var JSON = global_1.JSON;
-var nativeJSONStringify = JSON && JSON.stringify;
+var JSON$1 = global_1.JSON;
+var nativeJSONStringify = JSON$1 && JSON$1.stringify;
 var nativeGetOwnPropertyDescriptor$1 = objectGetOwnPropertyDescriptor.f;
 var nativeDefineProperty$1 = objectDefineProperty.f;
 var nativeGetOwnPropertyNames$1 = objectGetOwnPropertyNamesExternal.f;
@@ -3680,7 +3587,7 @@ _export({ target: 'Object', stat: true, forced: fails(function () { objectGetOwn
 
 // `JSON.stringify` method behavior with symbols
 // https://tc39.github.io/ecma262/#sec-json.stringify
-JSON && _export({ target: 'JSON', stat: true, forced: !nativeSymbol || fails(function () {
+JSON$1 && _export({ target: 'JSON', stat: true, forced: !nativeSymbol || fails(function () {
   var symbol = $Symbol();
   // MS Edge converts symbol values to JSON as {}
   return nativeJSONStringify([symbol]) != '[null]'
@@ -3701,7 +3608,7 @@ JSON && _export({ target: 'JSON', stat: true, forced: !nativeSymbol || fails(fun
       if (!isSymbol(value)) return value;
     };
     args[1] = replacer;
-    return nativeJSONStringify.apply(JSON, args);
+    return nativeJSONStringify.apply(JSON$1, args);
   }
 });
 
@@ -3758,6 +3665,20 @@ if (descriptors && typeof NativeSymbol == 'function' && (!('description' in Nati
     Symbol: SymbolWrapper
   });
 }
+
+var UNSCOPABLES = wellKnownSymbol('unscopables');
+var ArrayPrototype = Array.prototype;
+
+// Array.prototype[@@unscopables]
+// https://tc39.github.io/ecma262/#sec-array.prototype-@@unscopables
+if (ArrayPrototype[UNSCOPABLES] == undefined) {
+  createNonEnumerableProperty(ArrayPrototype, UNSCOPABLES, objectCreate(null));
+}
+
+// add a key to Array.prototype[@@unscopables]
+var addToUnscopables = function (key) {
+  ArrayPrototype[UNSCOPABLES][key] = true;
+};
 
 var iterators = {};
 
@@ -3974,6 +3895,45 @@ var arrayLastIndexOf = (NEGATIVE_ZERO$1 || SLOPPY_METHOD$2) ? function lastIndex
 // https://tc39.github.io/ecma262/#sec-array.prototype.lastindexof
 _export({ target: 'Array', proto: true, forced: arrayLastIndexOf !== [].lastIndexOf }, {
   lastIndexOf: arrayLastIndexOf
+});
+
+var nativeAssign = Object.assign;
+
+// `Object.assign` method
+// https://tc39.github.io/ecma262/#sec-object.assign
+// should work with symbols and should have deterministic property order (V8 bug)
+var objectAssign = !nativeAssign || fails(function () {
+  var A = {};
+  var B = {};
+  // eslint--disable-next-line no-undef
+  var symbol = Symbol();
+  var alphabet = 'abcdefghijklmnopqrst';
+  A[symbol] = 7;
+  alphabet.split('').forEach(function (chr) { B[chr] = chr; });
+  return nativeAssign({}, A)[symbol] != 7 || objectKeys(nativeAssign({}, B)).join('') != alphabet;
+}) ? function assign(target, source) { // eslint--disable-line no-unused-vars
+  var T = toObject(target);
+  var argumentsLength = arguments.length;
+  var index = 1;
+  var getOwnPropertySymbols = objectGetOwnPropertySymbols.f;
+  var propertyIsEnumerable = objectPropertyIsEnumerable.f;
+  while (argumentsLength > index) {
+    var S = indexedObject(arguments[index++]);
+    var keys = getOwnPropertySymbols ? objectKeys(S).concat(getOwnPropertySymbols(S)) : objectKeys(S);
+    var length = keys.length;
+    var j = 0;
+    var key;
+    while (length > j) {
+      key = keys[j++];
+      if (!descriptors || propertyIsEnumerable.call(S, key)) T[key] = S[key];
+    }
+  } return T;
+} : nativeAssign;
+
+// `Object.assign` method
+// https://tc39.github.io/ecma262/#sec-object.assign
+_export({ target: 'Object', stat: true, forced: Object.assign !== objectAssign }, {
+  assign: objectAssign
 });
 
 // `RegExp.prototype.flags` getter
@@ -4463,6 +4423,69 @@ function _createClass(Constructor, protoProps, staticProps) {
   if (staticProps) _defineProperties(Constructor, staticProps);
   return Constructor;
 }
+
+function _toConsumableArray(arr) {
+  return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread();
+}
+
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) {
+    for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+}
+
+function _iterableToArray(iter) {
+  if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
+}
+
+function _nonIterableSpread() {
+  throw new TypeError("Invalid attempt to spread non-iterable instance");
+}
+
+var $includes = arrayIncludes.includes;
+
+
+// `Array.prototype.includes` method
+// https://tc39.github.io/ecma262/#sec-array.prototype.includes
+_export({ target: 'Array', proto: true }, {
+  includes: function includes(el /* , fromIndex = 0 */) {
+    return $includes(this, el, arguments.length > 1 ? arguments[1] : undefined);
+  }
+});
+
+// https://tc39.github.io/ecma262/#sec-array.prototype-@@unscopables
+addToUnscopables('includes');
+
+var notARegexp = function (it) {
+  if (isRegexp(it)) {
+    throw TypeError("The method doesn't accept regular expressions");
+  } return it;
+};
+
+var MATCH$2 = wellKnownSymbol('match');
+
+var correctIsRegexpLogic = function (METHOD_NAME) {
+  var regexp = /./;
+  try {
+    '/./'[METHOD_NAME](regexp);
+  } catch (e) {
+    try {
+      regexp[MATCH$2] = false;
+      return '/./'[METHOD_NAME](regexp);
+    } catch (f) { /* empty */ }
+  } return false;
+};
+
+// `String.prototype.includes` method
+// https://tc39.github.io/ecma262/#sec-string.prototype.includes
+_export({ target: 'String', proto: true, forced: !correctIsRegexpLogic('includes') }, {
+  includes: function includes(searchString /* , position = 0 */) {
+    return !!~String(requireObjectCoercible(this))
+      .indexOf(notARegexp(searchString), arguments.length > 1 ? arguments[1] : undefined);
+  }
+});
 
 /**
  * lodash (Custom Build) <https://lodash.com/>
@@ -5256,9 +5279,6 @@ var nodeUtils = createCommonjsModule(function (module, exports) {
 
         case SyntaxKind.PrivateKeyword:
           return 'private';
-
-        default:
-          break;
       }
     }
 
@@ -5425,8 +5445,6 @@ var nodeUtils = createCommonjsModule(function (module, exports) {
       case SyntaxKind.ConstructorKeyword:
       case SyntaxKind.GetKeyword:
       case SyntaxKind.SetKeyword: // falls through
-
-      default:
     } // Some JSX tokens have to be determined based on their parent
 
 
@@ -6109,8 +6127,6 @@ var convert = createCommonjsModule(function (module, exports) {
               result.declare = true;
               handledModifierIndices[i] = true;
               break;
-
-            default:
           }
         }
         /**
@@ -8445,9 +8461,6 @@ var convertComments_1 = createCommonjsModule(function (module, exports) {
           }
 
           break;
-
-        default:
-          break;
       }
 
       kind = triviaScanner.scan();
@@ -8518,163 +8531,1226 @@ var astConverter_1 = createCommonjsModule(function (module, exports) {
 unwrapExports(astConverter_1);
 var astConverter_2 = astConverter_1.astConverter;
 
-var semanticOrSyntacticErrors = createCommonjsModule(function (module, exports) {
+var max$3 = Math.max;
+var min$5 = Math.min;
+var MAX_SAFE_INTEGER$1 = 0x1FFFFFFFFFFFFF;
+var MAXIMUM_ALLOWED_LENGTH_EXCEEDED = 'Maximum allowed length exceeded';
 
-  var __importStar = commonjsGlobal && commonjsGlobal.__importStar || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) {
-      if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+// `Array.prototype.splice` method
+// https://tc39.github.io/ecma262/#sec-array.prototype.splice
+// with adding support of @@species
+_export({ target: 'Array', proto: true, forced: !arrayMethodHasSpeciesSupport('splice') }, {
+  splice: function splice(start, deleteCount /* , ...items */) {
+    var O = toObject(this);
+    var len = toLength(O.length);
+    var actualStart = toAbsoluteIndex(start, len);
+    var argumentsLength = arguments.length;
+    var insertCount, actualDeleteCount, A, k, from, to;
+    if (argumentsLength === 0) {
+      insertCount = actualDeleteCount = 0;
+    } else if (argumentsLength === 1) {
+      insertCount = 0;
+      actualDeleteCount = len - actualStart;
+    } else {
+      insertCount = argumentsLength - 2;
+      actualDeleteCount = min$5(max$3(toInteger(deleteCount), 0), len - actualStart);
     }
-    result["default"] = mod;
-    return result;
+    if (len + insertCount - actualDeleteCount > MAX_SAFE_INTEGER$1) {
+      throw TypeError(MAXIMUM_ALLOWED_LENGTH_EXCEEDED);
+    }
+    A = arraySpeciesCreate(O, actualDeleteCount);
+    for (k = 0; k < actualDeleteCount; k++) {
+      from = actualStart + k;
+      if (from in O) createProperty(A, k, O[from]);
+    }
+    A.length = actualDeleteCount;
+    if (insertCount < actualDeleteCount) {
+      for (k = actualStart; k < len - actualDeleteCount; k++) {
+        from = k + actualDeleteCount;
+        to = k + insertCount;
+        if (from in O) O[to] = O[from];
+        else delete O[to];
+      }
+      for (k = len; k > len - actualDeleteCount + insertCount; k--) delete O[k - 1];
+    } else if (insertCount > actualDeleteCount) {
+      for (k = len - actualDeleteCount; k > actualStart; k--) {
+        from = k + actualDeleteCount - 1;
+        to = k + insertCount - 1;
+        if (from in O) O[to] = O[from];
+        else delete O[to];
+      }
+    }
+    for (k = 0; k < insertCount; k++) {
+      O[k + actualStart] = arguments[k + 2];
+    }
+    O.length = len - actualDeleteCount + insertCount;
+    return A;
+  }
+});
+
+/**
+ * Helpers.
+ */
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var w = d * 7;
+var y = d * 365.25;
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} [options]
+ * @throws {Error} throw an error if val is not a non-empty string or a number
+ * @return {String|Number}
+ * @api public
+ */
+
+var ms = function ms(val, options) {
+  options = options || {};
+  var type = typeof val;
+
+  if (type === 'string' && val.length > 0) {
+    return parse(val);
+  } else if (type === 'number' && isFinite(val)) {
+    return options.long ? fmtLong(val) : fmtShort(val);
+  }
+
+  throw new Error('val is not a non-empty string or a valid number. val=' + JSON.stringify(val));
+};
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+
+function parse(str) {
+  str = String(str);
+
+  if (str.length > 100) {
+    return;
+  }
+
+  var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(str);
+
+  if (!match) {
+    return;
+  }
+
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+
+    case 'weeks':
+    case 'week':
+    case 'w':
+      return n * w;
+
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+
+    default:
+      return undefined;
+  }
+}
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+
+function fmtShort(ms) {
+  var msAbs = Math.abs(ms);
+
+  if (msAbs >= d) {
+    return Math.round(ms / d) + 'd';
+  }
+
+  if (msAbs >= h) {
+    return Math.round(ms / h) + 'h';
+  }
+
+  if (msAbs >= m) {
+    return Math.round(ms / m) + 'm';
+  }
+
+  if (msAbs >= s) {
+    return Math.round(ms / s) + 's';
+  }
+
+  return ms + 'ms';
+}
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+
+function fmtLong(ms) {
+  var msAbs = Math.abs(ms);
+
+  if (msAbs >= d) {
+    return plural(ms, msAbs, d, 'day');
+  }
+
+  if (msAbs >= h) {
+    return plural(ms, msAbs, h, 'hour');
+  }
+
+  if (msAbs >= m) {
+    return plural(ms, msAbs, m, 'minute');
+  }
+
+  if (msAbs >= s) {
+    return plural(ms, msAbs, s, 'second');
+  }
+
+  return ms + ' ms';
+}
+/**
+ * Pluralization helper.
+ */
+
+
+function plural(ms, msAbs, n, name) {
+  var isPlural = msAbs >= n * 1.5;
+  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
+}
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ */
+
+function setup(env) {
+  createDebug.debug = createDebug;
+  createDebug.default = createDebug;
+  createDebug.coerce = coerce;
+  createDebug.disable = disable;
+  createDebug.enable = enable;
+  createDebug.enabled = enabled;
+  createDebug.humanize = ms;
+  Object.keys(env).forEach(function (key) {
+    createDebug[key] = env[key];
+  });
+  /**
+  * Active `debug` instances.
+  */
+
+  createDebug.instances = [];
+  /**
+  * The currently active debug mode names, and names to skip.
+  */
+
+  createDebug.names = [];
+  createDebug.skips = [];
+  /**
+  * Map of special "%n" handling functions, for the debug "format" argument.
+  *
+  * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+  */
+
+  createDebug.formatters = {};
+  /**
+  * Selects a color for a debug namespace
+  * @param {String} namespace The namespace string for the for the debug instance to be colored
+  * @return {Number|String} An ANSI color code for the given namespace
+  * @api private
+  */
+
+  function selectColor(namespace) {
+    var hash = 0;
+
+    for (var i = 0; i < namespace.length; i++) {
+      hash = (hash << 5) - hash + namespace.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+
+    return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
+  }
+
+  createDebug.selectColor = selectColor;
+  /**
+  * Create a debugger with the given `namespace`.
+  *
+  * @param {String} namespace
+  * @return {Function}
+  * @api public
+  */
+
+  function createDebug(namespace) {
+    var prevTime;
+
+    function debug() {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      // Disabled?
+      if (!debug.enabled) {
+        return;
+      }
+
+      var self = debug; // Set `diff` timestamp
+
+      var curr = Number(new Date());
+      var ms = curr - (prevTime || curr);
+      self.diff = ms;
+      self.prev = prevTime;
+      self.curr = curr;
+      prevTime = curr;
+      args[0] = createDebug.coerce(args[0]);
+
+      if (typeof args[0] !== 'string') {
+        // Anything else let's inspect with %O
+        args.unshift('%O');
+      } // Apply any `formatters` transformations
+
+
+      var index = 0;
+      args[0] = args[0].replace(/%([a-zA-Z%])/g, function (match, format) {
+        // If we encounter an escaped % then don't increase the array index
+        if (match === '%%') {
+          return match;
+        }
+
+        index++;
+        var formatter = createDebug.formatters[format];
+
+        if (typeof formatter === 'function') {
+          var val = args[index];
+          match = formatter.call(self, val); // Now we need to remove `args[index]` since it's inlined in the `format`
+
+          args.splice(index, 1);
+          index--;
+        }
+
+        return match;
+      }); // Apply env-specific formatting (colors, etc.)
+
+      createDebug.formatArgs.call(self, args);
+      var logFn = self.log || createDebug.log;
+      logFn.apply(self, args);
+    }
+
+    debug.namespace = namespace;
+    debug.enabled = createDebug.enabled(namespace);
+    debug.useColors = createDebug.useColors();
+    debug.color = selectColor(namespace);
+    debug.destroy = destroy;
+    debug.extend = extend; // Debug.formatArgs = formatArgs;
+    // debug.rawLog = rawLog;
+    // env-specific initialization logic for debug instances
+
+    if (typeof createDebug.init === 'function') {
+      createDebug.init(debug);
+    }
+
+    createDebug.instances.push(debug);
+    return debug;
+  }
+
+  function destroy() {
+    var index = createDebug.instances.indexOf(this);
+
+    if (index !== -1) {
+      createDebug.instances.splice(index, 1);
+      return true;
+    }
+
+    return false;
+  }
+
+  function extend(namespace, delimiter) {
+    var newDebug = createDebug(this.namespace + (typeof delimiter === 'undefined' ? ':' : delimiter) + namespace);
+    newDebug.log = this.log;
+    return newDebug;
+  }
+  /**
+  * Enables a debug mode by namespaces. This can include modes
+  * separated by a colon and wildcards.
+  *
+  * @param {String} namespaces
+  * @api public
+  */
+
+
+  function enable(namespaces) {
+    createDebug.save(namespaces);
+    createDebug.names = [];
+    createDebug.skips = [];
+    var i;
+    var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+    var len = split.length;
+
+    for (i = 0; i < len; i++) {
+      if (!split[i]) {
+        // ignore empty strings
+        continue;
+      }
+
+      namespaces = split[i].replace(/\*/g, '.*?');
+
+      if (namespaces[0] === '-') {
+        createDebug.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+      } else {
+        createDebug.names.push(new RegExp('^' + namespaces + '$'));
+      }
+    }
+
+    for (i = 0; i < createDebug.instances.length; i++) {
+      var instance = createDebug.instances[i];
+      instance.enabled = createDebug.enabled(instance.namespace);
+    }
+  }
+  /**
+  * Disable debug output.
+  *
+  * @return {String} namespaces
+  * @api public
+  */
+
+
+  function disable() {
+    var namespaces = [].concat(_toConsumableArray(createDebug.names.map(toNamespace)), _toConsumableArray(createDebug.skips.map(toNamespace).map(function (namespace) {
+      return '-' + namespace;
+    }))).join(',');
+    createDebug.enable('');
+    return namespaces;
+  }
+  /**
+  * Returns true if the given mode name is enabled, false otherwise.
+  *
+  * @param {String} name
+  * @return {Boolean}
+  * @api public
+  */
+
+
+  function enabled(name) {
+    if (name[name.length - 1] === '*') {
+      return true;
+    }
+
+    var i;
+    var len;
+
+    for (i = 0, len = createDebug.skips.length; i < len; i++) {
+      if (createDebug.skips[i].test(name)) {
+        return false;
+      }
+    }
+
+    for (i = 0, len = createDebug.names.length; i < len; i++) {
+      if (createDebug.names[i].test(name)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+  /**
+  * Convert regexp to namespace
+  *
+  * @param {RegExp} regxep
+  * @return {String} namespace
+  * @api private
+  */
+
+
+  function toNamespace(regexp) {
+    return regexp.toString().substring(2, regexp.toString().length - 2).replace(/\.\*\?$/, '*');
+  }
+  /**
+  * Coerce `val`.
+  *
+  * @param {Mixed} val
+  * @return {Mixed}
+  * @api private
+  */
+
+
+  function coerce(val) {
+    if (val instanceof Error) {
+      return val.stack || val.message;
+    }
+
+    return val;
+  }
+
+  createDebug.enable(createDebug.load());
+  return createDebug;
+}
+
+var common = setup;
+
+var browser = createCommonjsModule(function (module, exports) {
+  /* eslint-env browser */
+
+  /**
+   * This is the web browser implementation of `debug()`.
+   */
+  exports.log = log;
+  exports.formatArgs = formatArgs;
+  exports.save = save;
+  exports.load = load;
+  exports.useColors = useColors;
+  exports.storage = localstorage();
+  /**
+   * Colors.
+   */
+
+  exports.colors = ['#0000CC', '#0000FF', '#0033CC', '#0033FF', '#0066CC', '#0066FF', '#0099CC', '#0099FF', '#00CC00', '#00CC33', '#00CC66', '#00CC99', '#00CCCC', '#00CCFF', '#3300CC', '#3300FF', '#3333CC', '#3333FF', '#3366CC', '#3366FF', '#3399CC', '#3399FF', '#33CC00', '#33CC33', '#33CC66', '#33CC99', '#33CCCC', '#33CCFF', '#6600CC', '#6600FF', '#6633CC', '#6633FF', '#66CC00', '#66CC33', '#9900CC', '#9900FF', '#9933CC', '#9933FF', '#99CC00', '#99CC33', '#CC0000', '#CC0033', '#CC0066', '#CC0099', '#CC00CC', '#CC00FF', '#CC3300', '#CC3333', '#CC3366', '#CC3399', '#CC33CC', '#CC33FF', '#CC6600', '#CC6633', '#CC9900', '#CC9933', '#CCCC00', '#CCCC33', '#FF0000', '#FF0033', '#FF0066', '#FF0099', '#FF00CC', '#FF00FF', '#FF3300', '#FF3333', '#FF3366', '#FF3399', '#FF33CC', '#FF33FF', '#FF6600', '#FF6633', '#FF9900', '#FF9933', '#FFCC00', '#FFCC33'];
+  /**
+   * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+   * and the Firebug extension (any Firefox version) are known
+   * to support "%c" CSS customizations.
+   *
+   * TODO: add a `localStorage` variable to explicitly enable/disable colors
+   */
+  // eslint--disable-next-line complexity
+
+  function useColors() {
+    // NB: In an Electron preload script, document will be defined but not fully
+    // initialized. Since we know we're in Chrome, we'll just detect this case
+    // explicitly
+    if (typeof window !== 'undefined' && window.process && (window.process.type === 'renderer' || window.process.__nwjs)) {
+      return true;
+    } // Internet Explorer and Edge do not support colors.
+
+
+    if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
+      return false;
+    } // Is webkit? http://stackoverflow.com/a/16459606/376773
+    // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+
+
+    return typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // Is firebug? http://stackoverflow.com/a/398120/376773
+    typeof window !== 'undefined' && window.console && (window.console.firebug || window.console.exception && window.console.table) || // Is firefox >= v31?
+    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+    typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // Double check webkit in userAgent just in case we are in a worker
+    typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
+  }
+  /**
+   * Colorize log arguments if enabled.
+   *
+   * @api public
+   */
+
+
+  function formatArgs(args) {
+    args[0] = (this.useColors ? '%c' : '') + this.namespace + (this.useColors ? ' %c' : ' ') + args[0] + (this.useColors ? '%c ' : ' ') + '+' + module.exports.humanize(this.diff);
+
+    if (!this.useColors) {
+      return;
+    }
+
+    var c = 'color: ' + this.color;
+    args.splice(1, 0, c, 'color: inherit'); // The final "%c" is somewhat tricky, because there could be other
+    // arguments passed either before or after the %c, so we need to
+    // figure out the correct index to insert the CSS into
+
+    var index = 0;
+    var lastC = 0;
+    args[0].replace(/%[a-zA-Z%]/g, function (match) {
+      if (match === '%%') {
+        return;
+      }
+
+      index++;
+
+      if (match === '%c') {
+        // We only are interested in the *last* %c
+        // (the user may have provided their own)
+        lastC = index;
+      }
+    });
+    args.splice(lastC, 0, c);
+  }
+  /**
+   * Invokes `console.log()` when available.
+   * No-op when `console.log` is not a "function".
+   *
+   * @api public
+   */
+
+
+  function log() {
+    var _console;
+
+    // This hackery is required for IE8/9, where
+    // the `console.log` function doesn't have 'apply'
+    return typeof console === 'object' && console.log && (_console = console).log.apply(_console, arguments);
+  }
+  /**
+   * Save `namespaces`.
+   *
+   * @param {String} namespaces
+   * @api private
+   */
+
+
+  function save(namespaces) {
+    try {
+      if (namespaces) {
+        exports.storage.setItem('debug', namespaces);
+      } else {
+        exports.storage.removeItem('debug');
+      }
+    } catch (error) {// Swallow
+      // XXX (@Qix-) should we be logging these?
+    }
+  }
+  /**
+   * Load `namespaces`.
+   *
+   * @return {String} returns the previously persisted debug modes
+   * @api private
+   */
+
+
+  function load() {
+    var r;
+
+    try {
+      r = exports.storage.getItem('debug');
+    } catch (error) {} // Swallow
+    // XXX (@Qix-) should we be logging these?
+    // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+
+
+    if (!r && typeof process !== 'undefined' && 'env' in process) {
+      r = process.env.DEBUG;
+    }
+
+    return r;
+  }
+  /**
+   * Localstorage attempts to return the localstorage.
+   *
+   * This is necessary because safari throws
+   * when a user disables cookies/localstorage
+   * and you attempt to access it.
+   *
+   * @return {LocalStorage}
+   * @api private
+   */
+
+
+  function localstorage() {
+    try {
+      // TVMLKit (Apple TV JS Runtime) does not have a window object, just localStorage in the global context
+      // The Browser also has localStorage in the global context.
+      return localStorage;
+    } catch (error) {// Swallow
+      // XXX (@Qix-) should we be logging these?
+    }
+  }
+
+  module.exports = common(exports);
+  var formatters = module.exports.formatters;
+  /**
+   * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+   */
+
+  formatters.j = function (v) {
+    try {
+      return JSON.stringify(v);
+    } catch (error) {
+      return '[UnexpectedJSONParseError]: ' + error.message;
+    }
+  };
+});
+var browser_1 = browser.log;
+var browser_2 = browser.formatArgs;
+var browser_3 = browser.save;
+var browser_4 = browser.load;
+var browser_5 = browser.useColors;
+var browser_6 = browser.storage;
+var browser_7 = browser.colors;
+
+var nativeStartsWith = ''.startsWith;
+var min$6 = Math.min;
+
+// `String.prototype.startsWith` method
+// https://tc39.github.io/ecma262/#sec-string.prototype.startswith
+_export({ target: 'String', proto: true, forced: !correctIsRegexpLogic('startsWith') }, {
+  startsWith: function startsWith(searchString /* , position = 0 */) {
+    var that = String(requireObjectCoercible(this));
+    notARegexp(searchString);
+    var index = toLength(min$6(arguments.length > 1 ? arguments[1] : undefined, that.length));
+    var search = String(searchString);
+    return nativeStartsWith
+      ? nativeStartsWith.call(that, search, index)
+      : that.slice(index, index + search.length) === search;
+  }
+});
+
+var hasFlag = function hasFlag(flag, argv) {
+  argv = argv || process.argv;
+  var prefix = flag.startsWith('-') ? '' : flag.length === 1 ? '-' : '--';
+  var pos = argv.indexOf(prefix + flag);
+  var terminatorPos = argv.indexOf('--');
+  return pos !== -1 && (terminatorPos === -1 ? true : pos < terminatorPos);
+};
+
+var _process = process,
+    env = _process.env;
+var forceColor;
+
+if (hasFlag('no-color') || hasFlag('no-colors') || hasFlag('color=false') || hasFlag('color=never')) {
+  forceColor = 0;
+} else if (hasFlag('color') || hasFlag('colors') || hasFlag('color=true') || hasFlag('color=always')) {
+  forceColor = 1;
+}
+
+if ('FORCE_COLOR' in env) {
+  if (env.FORCE_COLOR === true || env.FORCE_COLOR === 'true') {
+    forceColor = 1;
+  } else if (env.FORCE_COLOR === false || env.FORCE_COLOR === 'false') {
+    forceColor = 0;
+  } else {
+    forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
+  }
+}
+
+function translateLevel(level) {
+  if (level === 0) {
+    return false;
+  }
+
+  return {
+    level,
+    hasBasic: true,
+    has256: level >= 2,
+    has16m: level >= 3
+  };
+}
+
+function supportsColor(stream) {
+  if (forceColor === 0) {
+    return 0;
+  }
+
+  if (hasFlag('color=16m') || hasFlag('color=full') || hasFlag('color=truecolor')) {
+    return 3;
+  }
+
+  if (hasFlag('color=256')) {
+    return 2;
+  }
+
+  if (stream && !stream.isTTY && forceColor === undefined) {
+    return 0;
+  }
+
+  var min = forceColor || 0;
+
+  if (env.TERM === 'dumb') {
+    return min;
+  }
+
+  if (process.platform === 'win32') {
+    // Node.js 7.5.0 is the first version of Node.js to include a patch to
+    // libuv that enables 256 color output on Windows. Anything earlier and it
+    // won't work. However, here we target Node.js 8 at minimum as it is an LTS
+    // release, and Node.js 7 is not. Windows 10 build 10586 is the first Windows
+    // release that supports 256 colors. Windows 10 build 14931 is the first release
+    // that supports 16m/TrueColor.
+    var osRelease = os.release().split('.');
+
+    if (Number(process.versions.node.split('.')[0]) >= 8 && Number(osRelease[0]) >= 10 && Number(osRelease[2]) >= 10586) {
+      return Number(osRelease[2]) >= 14931 ? 3 : 2;
+    }
+
+    return 1;
+  }
+
+  if ('CI' in env) {
+    if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI'].some(function (sign) {
+      return sign in env;
+    }) || env.CI_NAME === 'codeship') {
+      return 1;
+    }
+
+    return min;
+  }
+
+  if ('TEAMCITY_VERSION' in env) {
+    return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+  }
+
+  if (env.COLORTERM === 'truecolor') {
+    return 3;
+  }
+
+  if ('TERM_PROGRAM' in env) {
+    var version = parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
+
+    switch (env.TERM_PROGRAM) {
+      case 'iTerm.app':
+        return version >= 3 ? 3 : 2;
+
+      case 'Apple_Terminal':
+        return 2;
+      // No default
+    }
+  }
+
+  if (/-256(color)?$/i.test(env.TERM)) {
+    return 2;
+  }
+
+  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+    return 1;
+  }
+
+  if ('COLORTERM' in env) {
+    return 1;
+  }
+
+  return min;
+}
+
+function getSupportLevel(stream) {
+  var level = supportsColor(stream);
+  return translateLevel(level);
+}
+
+var supportsColor_1 = {
+  supportsColor: getSupportLevel,
+  stdout: getSupportLevel(process.stdout),
+  stderr: getSupportLevel(process.stderr)
+};
+
+var node = createCommonjsModule(function (module, exports) {
+  /**
+   * Module dependencies.
+   */
+
+  /**
+   * This is the Node.js implementation of `debug()`.
+   */
+  exports.init = init;
+  exports.log = log;
+  exports.formatArgs = formatArgs;
+  exports.save = save;
+  exports.load = load;
+  exports.useColors = useColors;
+  /**
+   * Colors.
+   */
+
+  exports.colors = [6, 2, 3, 4, 5, 1];
+
+  try {
+    // Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
+    // eslint--disable-next-line import/no-extraneous-dependencies
+    var supportsColor = supportsColor_1;
+
+    if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
+      exports.colors = [20, 21, 26, 27, 32, 33, 38, 39, 40, 41, 42, 43, 44, 45, 56, 57, 62, 63, 68, 69, 74, 75, 76, 77, 78, 79, 80, 81, 92, 93, 98, 99, 112, 113, 128, 129, 134, 135, 148, 149, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 178, 179, 184, 185, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 214, 215, 220, 221];
+    }
+  } catch (error) {} // Swallow - we only care if `supports-color` is available; it doesn't have to be.
+
+  /**
+   * Build up the default `inspectOpts` object from the environment variables.
+   *
+   *   $ DEBUG_COLORS=no DEBUG_DEPTH=10 DEBUG_SHOW_HIDDEN=enabled node script.js
+   */
+
+
+  exports.inspectOpts = Object.keys(process.env).filter(function (key) {
+    return /^debug_/i.test(key);
+  }).reduce(function (obj, key) {
+    // Camel-case
+    var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function (_, k) {
+      return k.toUpperCase();
+    }); // Coerce string value into JS value
+
+    var val = process.env[key];
+
+    if (/^(yes|on|true|enabled)$/i.test(val)) {
+      val = true;
+    } else if (/^(no|off|false|disabled)$/i.test(val)) {
+      val = false;
+    } else if (val === 'null') {
+      val = null;
+    } else {
+      val = Number(val);
+    }
+
+    obj[prop] = val;
+    return obj;
+  }, {});
+  /**
+   * Is stdout a TTY? Colored output is enabled when `true`.
+   */
+
+  function useColors() {
+    return 'colors' in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(process.stderr.fd);
+  }
+  /**
+   * Adds ANSI color escape codes if enabled.
+   *
+   * @api public
+   */
+
+
+  function formatArgs(args) {
+    var name = this.namespace,
+        useColors = this.useColors;
+
+    if (useColors) {
+      var c = this.color;
+      var colorCode = '\u001B[3' + (c < 8 ? c : '8;5;' + c);
+      var prefix = `  ${colorCode};1m${name} \u001B[0m`;
+      args[0] = prefix + args[0].split('\n').join('\n' + prefix);
+      args.push(colorCode + 'm+' + module.exports.humanize(this.diff) + '\u001B[0m');
+    } else {
+      args[0] = getDate() + name + ' ' + args[0];
+    }
+  }
+
+  function getDate() {
+    if (exports.inspectOpts.hideDate) {
+      return '';
+    }
+
+    return new Date().toISOString() + ' ';
+  }
+  /**
+   * Invokes `util.format()` with the specified arguments and writes to stderr.
+   */
+
+
+  function log() {
+    return process.stderr.write(util.format.apply(util, arguments) + '\n');
+  }
+  /**
+   * Save `namespaces`.
+   *
+   * @param {String} namespaces
+   * @api private
+   */
+
+
+  function save(namespaces) {
+    if (namespaces) {
+      process.env.DEBUG = namespaces;
+    } else {
+      // If you set a process.env field to null or undefined, it gets cast to the
+      // string 'null' or 'undefined'. Just delete instead.
+      delete process.env.DEBUG;
+    }
+  }
+  /**
+   * Load `namespaces`.
+   *
+   * @return {String} returns the previously persisted debug modes
+   * @api private
+   */
+
+
+  function load() {
+    return process.env.DEBUG;
+  }
+  /**
+   * Init logic for `debug` instances.
+   *
+   * Create a new `inspectOpts` object in case `useColors` is set
+   * differently for a particular `debug` instance.
+   */
+
+
+  function init(debug) {
+    debug.inspectOpts = {};
+    var keys = Object.keys(exports.inspectOpts);
+
+    for (var i = 0; i < keys.length; i++) {
+      debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+    }
+  }
+
+  module.exports = common(exports);
+  var formatters = module.exports.formatters;
+  /**
+   * Map %o to `util.inspect()`, all on a single line.
+   */
+
+  formatters.o = function (v) {
+    this.inspectOpts.colors = this.useColors;
+    return util.inspect(v, this.inspectOpts).replace(/\s*\n\s*/g, ' ');
+  };
+  /**
+   * Map %O to `util.inspect()`, allowing multiple lines if needed.
+   */
+
+
+  formatters.O = function (v) {
+    this.inspectOpts.colors = this.useColors;
+    return util.inspect(v, this.inspectOpts);
+  };
+});
+var node_1 = node.init;
+var node_2 = node.log;
+var node_3 = node.formatArgs;
+var node_4 = node.save;
+var node_5 = node.load;
+var node_6 = node.useColors;
+var node_7 = node.colors;
+var node_8 = node.inspectOpts;
+
+var src = createCommonjsModule(function (module) {
+  /**
+   * Detect Electron renderer / nwjs process, which is node, but we should
+   * treat as a browser.
+   */
+  if (typeof process === 'undefined' || process.type === 'renderer' || process.browser === true || process.__nwjs) {
+    module.exports = browser;
+  } else {
+    module.exports = node;
+  }
+});
+
+var shared$1 = createCommonjsModule(function (module, exports) {
+
+  var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function (mod) {
+    return mod && mod.__esModule ? mod : {
+      "default": mod
+    };
   };
 
   Object.defineProperty(exports, "__esModule", {
     value: true
   });
 
-  var ts = __importStar(typescript); // leave this as * as ts so people using util package don't need syntheticDefaultImports
-
+  var path_1 = __importDefault(path$1);
   /**
-   * By default, diagnostics from the TypeScript compiler contain all errors - regardless of whether
-   * they are related to generic ECMAScript standards, or TypeScript-specific constructs.
-   *
-   * Therefore, we filter out all diagnostics, except for the ones we explicitly want to consider when
-   * the user opts in to throwing errors on semantic issues.
+   * Default compiler options for program generation from single root file
    */
 
 
-  function getFirstSemanticOrSyntacticError(program, ast) {
-    try {
-      var supportedSyntacticDiagnostics = whitelistSupportedDiagnostics(program.getSyntacticDiagnostics(ast));
+  var DEFAULT_COMPILER_OPTIONS = {
+    allowNonTsExtensions: true,
+    allowJs: true,
+    checkJs: true,
+    noEmit: true
+  };
+  exports.DEFAULT_COMPILER_OPTIONS = DEFAULT_COMPILER_OPTIONS;
 
-      if (supportedSyntacticDiagnostics.length) {
-        return convertDiagnosticToSemanticOrSyntacticError(supportedSyntacticDiagnostics[0]);
-      }
+  function getTsconfigPath(tsconfigPath, extra) {
+    return path_1.default.isAbsolute(tsconfigPath) ? tsconfigPath : path_1.default.join(extra.tsconfigRootDir || process.cwd(), tsconfigPath);
+  }
 
-      var supportedSemanticDiagnostics = whitelistSupportedDiagnostics(program.getSemanticDiagnostics(ast));
+  exports.getTsconfigPath = getTsconfigPath;
+});
+unwrapExports(shared$1);
+var shared_1 = shared$1.DEFAULT_COMPILER_OPTIONS;
+var shared_2 = shared$1.getTsconfigPath;
 
-      if (supportedSemanticDiagnostics.length) {
-        return convertDiagnosticToSemanticOrSyntacticError(supportedSemanticDiagnostics[0]);
-      }
+var createDefaultProgram_1 = createCommonjsModule(function (module, exports) {
 
-      return undefined;
-    } catch (e) {
-      /**
-       * TypeScript compiler has certain Debug.fail() statements in, which will cause the diagnostics
-       * retrieval above to throw.
-       *
-       * E.g. from ast-alignment-tests
-       * "Debug Failure. Shouldn't ever directly check a JsxOpeningElement"
-       *
-       * For our current use-cases this is undesired behavior, so we just suppress it
-       * and log a a warning.
-       */
+  var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function (mod) {
+    return mod && mod.__esModule ? mod : {
+      "default": mod
+    };
+  };
 
-      /* istanbul ignore next */
-      console.warn(`Warning From TSC: "${e.message}`); // eslint--disable-line no-console
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
 
-      /* istanbul ignore next */
+  var debug_1 = __importDefault(src);
 
+  var path_1 = __importDefault(path$1);
+
+  var typescript_1 = __importDefault(typescript);
+
+  var log = debug_1.default('typescript-eslint:typescript-estree:createDefaultProgram');
+  /**
+   * @param code The code of the file being linted
+   * @param options The config object
+   * @param extra.tsconfigRootDir The root directory for relative tsconfig paths
+   * @param extra.projects Provided tsconfig paths
+   * @returns If found, returns the source file corresponding to the code and the containing program
+   */
+
+  function createDefaultProgram(code, extra) {
+    log('Getting default program for: %s', extra.filePath || 'unnamed file');
+
+    if (!extra.projects || extra.projects.length !== 1) {
       return undefined;
     }
+
+    var tsconfigPath = shared$1.getTsconfigPath(extra.projects[0], extra);
+    var commandLine = typescript_1.default.getParsedCommandLineOfConfigFile(tsconfigPath, shared$1.DEFAULT_COMPILER_OPTIONS, Object.assign(Object.assign({}, typescript_1.default.sys), {
+      onUnRecoverableConfigFileDiagnostic: function onUnRecoverableConfigFileDiagnostic() {}
+    }));
+
+    if (!commandLine) {
+      return undefined;
+    }
+
+    var compilerHost = typescript_1.default.createCompilerHost(commandLine.options, true);
+    var oldReadFile = compilerHost.readFile;
+
+    compilerHost.readFile = function (fileName) {
+      return path_1.default.normalize(fileName) === path_1.default.normalize(extra.filePath) ? code : oldReadFile(fileName);
+    };
+
+    var program = typescript_1.default.createProgram([extra.filePath], commandLine.options, compilerHost);
+    var ast = program.getSourceFile(extra.filePath);
+    return ast && {
+      ast,
+      program
+    };
   }
 
-  exports.getFirstSemanticOrSyntacticError = getFirstSemanticOrSyntacticError;
+  exports.createDefaultProgram = createDefaultProgram;
+});
+unwrapExports(createDefaultProgram_1);
+var createDefaultProgram_2 = createDefaultProgram_1.createDefaultProgram;
 
-  function whitelistSupportedDiagnostics(diagnostics) {
-    return diagnostics.filter(function (diagnostic) {
-      switch (diagnostic.code) {
-        case 1013: // ts 3.2 "A rest parameter or binding pattern may not have a trailing comma."
+var createIsolatedProgram_1 = createCommonjsModule(function (module, exports) {
 
-        case 1014: // ts 3.2 "A rest parameter must be last in a parameter list."
+  var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function (mod) {
+    return mod && mod.__esModule ? mod : {
+      "default": mod
+    };
+  };
 
-        case 1044: // ts 3.2 "'{0}' modifier cannot appear on a module or namespace element."
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
 
-        case 1045: // ts 3.2 "A '{0}' modifier cannot be used with an interface declaration."
+  var debug_1 = __importDefault(src);
 
-        case 1048: // ts 3.2 "A rest parameter cannot have an initializer."
+  var typescript_1 = __importDefault(typescript);
 
-        case 1049: // ts 3.2 "A 'set' accessor must have exactly one parameter."
+  var log = debug_1.default('typescript-eslint:typescript-estree:createIsolatedProgram');
+  /**
+   * @param code The code of the file being linted
+   * @returns Returns a new source file and program corresponding to the linted code
+   */
 
-        case 1070: // ts 3.2 "'{0}' modifier cannot appear on a type member."
+  function createIsolatedProgram(code, extra) {
+    log('Getting isolated program for: %s', extra.filePath);
+    var compilerHost = {
+      fileExists() {
+        return true;
+      },
 
-        case 1071: // ts 3.2 "'{0}' modifier cannot appear on an index signature."
+      getCanonicalFileName() {
+        return extra.filePath;
+      },
 
-        case 1085: // ts 3.2 "Octal literals are not available when targeting ECMAScript 5 and higher. Use the syntax '{0}'."
+      getCurrentDirectory() {
+        return '';
+      },
 
-        case 1090: // ts 3.2 "'{0}' modifier cannot appear on a parameter."
+      getDirectories() {
+        return [];
+      },
 
-        case 1096: // ts 3.2 "An index signature must have exactly one parameter."
+      getDefaultLibFileName() {
+        return 'lib.d.ts';
+      },
 
-        case 1097: // ts 3.2 "'{0}' list cannot be empty."
+      // TODO: Support Windows CRLF
+      getNewLine() {
+        return '\n';
+      },
 
-        case 1098: // ts 3.3 "Type parameter list cannot be empty."
+      getSourceFile(filename) {
+        return typescript_1.default.createSourceFile(filename, code, typescript_1.default.ScriptTarget.Latest, true);
+      },
 
-        case 1099: // ts 3.3 "Type argument list cannot be empty."
+      readFile() {
+        return undefined;
+      },
 
-        case 1117: // ts 3.2 "An object literal cannot have multiple properties with the same name in strict mode."
+      useCaseSensitiveFileNames() {
+        return true;
+      },
 
-        case 1121: // ts 3.2 "Octal literals are not allowed in strict mode."
-
-        case 1123: // ts 3.2: "Variable declaration list cannot be empty."
-
-        case 1141: // ts 3.2 "String literal expected."
-
-        case 1162: // ts 3.2 "An object member cannot be declared optional."
-
-        case 1172: // ts 3.2 "'extends' clause already seen."
-
-        case 1173: // ts 3.2 "'extends' clause must precede 'implements' clause."
-
-        case 1175: // ts 3.2 "'implements' clause already seen."
-
-        case 1176: // ts 3.2 "Interface declaration cannot have 'implements' clause."
-
-        case 1190: // ts 3.2 "The variable declaration of a 'for...of' statement cannot have an initializer."
-
-        case 1200: // ts 3.2 "Line terminator not permitted before arrow."
-
-        case 1206: // ts 3.2 "Decorators are not valid here."
-
-        case 1211: // ts 3.2 "A class declaration without the 'default' modifier must have a name."
-
-        case 1242: // ts 3.2 "'abstract' modifier can only appear on a class, method, or property declaration."
-
-        case 1246: // ts 3.2 "An interface property cannot have an initializer."
-
-        case 1255: // ts 3.2 "A definite assignment assertion '!' is not permitted in this context."
-
-        case 1308: // ts 3.2 "'await' expression is only allowed within an async function."
-
-        case 2364: // ts 3.2 "The left-hand side of an assignment expression must be a variable or a property access."
-
-        case 2369: // ts 3.2 "A parameter property is only allowed in a constructor implementation."
-
-        case 2462: // ts 3.2 "A rest element must be last in a destructuring pattern."
-
-        case 8017: // ts 3.2 "Octal literal types must use ES2015 syntax. Use the syntax '{0}'."
-
-        case 17012: // ts 3.2 "'{0}' is not a valid meta-property for keyword '{1}'. Did you mean '{2}'?"
-
-        case 17013:
-          // ts 3.2 "Meta-property '{0}' is only allowed in the body of a function declaration, function expression, or constructor."
-          return true;
+      writeFile() {
+        return null;
       }
 
-      return false;
-    });
+    };
+    var program = typescript_1.default.createProgram([extra.filePath], Object.assign({
+      noResolve: true,
+      target: typescript_1.default.ScriptTarget.Latest,
+      jsx: extra.jsx ? typescript_1.default.JsxEmit.Preserve : undefined
+    }, shared$1.DEFAULT_COMPILER_OPTIONS), compilerHost);
+    var ast = program.getSourceFile(extra.filePath);
+
+    if (!ast) {
+      throw new Error('Expected an ast to be returned for the single-file isolated program.');
+    }
+
+    return {
+      ast,
+      program
+    };
   }
 
-  function convertDiagnosticToSemanticOrSyntacticError(diagnostic) {
-    return Object.assign(Object.assign({}, diagnostic), {
-      message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ts.sys.newLine)
-    });
-  }
+  exports.createIsolatedProgram = createIsolatedProgram;
 });
-unwrapExports(semanticOrSyntacticErrors);
-var semanticOrSyntacticErrors_1 = semanticOrSyntacticErrors.getFirstSemanticOrSyntacticError;
+unwrapExports(createIsolatedProgram_1);
+var createIsolatedProgram_2 = createIsolatedProgram_1.createIsolatedProgram;
 
 var defineProperty$4 = objectDefineProperty.f;
 
@@ -8874,7 +9950,7 @@ var es_set = collection('Set', function (get) {
   return function Set() { return get(this, arguments.length ? arguments[0] : undefined); };
 }, collectionStrong);
 
-var tsconfigParser = createCommonjsModule(function (module, exports) {
+var createWatchProgram_1 = createCommonjsModule(function (module, exports) {
 
   var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function (mod) {
     return mod && mod.__esModule ? mod : {
@@ -8882,63 +9958,41 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
     };
   };
 
-  var __importStar = commonjsGlobal && commonjsGlobal.__importStar || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) {
-      if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    }
-    result["default"] = mod;
-    return result;
-  };
-
   Object.defineProperty(exports, "__esModule", {
     value: true
   });
 
-  var chokidar_1 = __importDefault(chokidar);
+  var debug_1 = __importDefault(src);
+
+  var fs_1 = __importDefault(fs);
 
   var path_1 = __importDefault(path$1);
 
-  var ts = __importStar(typescript); // leave this as * as ts so people using util package don't need syntheticDefaultImports
-  //------------------------------------------------------------------------------
-  // Environment calculation
-  //------------------------------------------------------------------------------
+  var typescript_1 = __importDefault(typescript);
 
-  /**
-   * Default compiler options for program generation from single root file
-   */
-
-
-  exports.defaultCompilerOptions = {
-    allowNonTsExtensions: true,
-    allowJs: true,
-    checkJs: true,
-    noEmit: true
-  };
+  var log = debug_1.default('typescript-eslint:typescript-estree:createWatchProgram');
   /**
    * Maps tsconfig paths to their corresponding file contents and resulting watches
    */
 
   var knownWatchProgramMap = new Map();
   /**
-   * Maps file paths to their set of corresponding watch callbacks
-   * There may be more than one per file if a file is shared between projects
+   * Maps file/folder paths to their set of corresponding watch callbacks
+   * There may be more than one per file/folder if a file/folder is shared between projects
    */
 
-  var watchCallbackTrackingMap = new Map();
+  var fileWatchCallbackTrackingMap = new Map();
+  var folderWatchCallbackTrackingMap = new Map();
   /**
-   * Tracks the ts.sys.watchFile watchers that we've opened for config files.
-   * We store these so we can clean up our handles if required.
+   * Stores the list of known files for each program
    */
 
-  var configSystemFileWatcherTrackingSet = new Set();
+  var programFileListCache = new Map();
   /**
-   * Tracks the ts.sys.watchDirectory watchers that we've opened for project folders.
-   * We store these so we can clean up our handles if required.
+   * Caches the last modified time of the tsconfig files
    */
 
-  var directorySystemFileWatcherTrackingSet = new Set();
+  var tsconfigLsatModifiedTimestampCache = new Map();
   var parsedFilesSeen = new Set();
   /**
    * Clear all of the parser caches.
@@ -8947,24 +10001,42 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
 
   function clearCaches() {
     knownWatchProgramMap.clear();
-    watchCallbackTrackingMap.clear();
-    parsedFilesSeen.clear(); // stop tracking config files
-
-    configSystemFileWatcherTrackingSet.forEach(function (cb) {
-      return cb.close();
-    });
-    configSystemFileWatcherTrackingSet.clear(); // stop tracking folders
-
-    directorySystemFileWatcherTrackingSet.forEach(function (cb) {
-      return cb.close();
-    });
-    directorySystemFileWatcherTrackingSet.clear();
+    fileWatchCallbackTrackingMap.clear();
+    folderWatchCallbackTrackingMap.clear();
+    parsedFilesSeen.clear();
+    programFileListCache.clear();
+    tsconfigLsatModifiedTimestampCache.clear();
   }
 
   exports.clearCaches = clearCaches;
+
+  function saveWatchCallback(trackingMap) {
+    return function (fileName, callback) {
+      var normalizedFileName = path_1.default.normalize(fileName);
+
+      var watchers = function () {
+        var watchers = trackingMap.get(normalizedFileName);
+
+        if (!watchers) {
+          watchers = new Set();
+          trackingMap.set(normalizedFileName, watchers);
+        }
+
+        return watchers;
+      }();
+
+      watchers.add(callback);
+      return {
+        close: function close() {
+          watchers.delete(callback);
+        }
+      };
+    };
+  }
   /**
    * Holds information about the file currently being linted
    */
+
 
   var currentLintOperationState = {
     code: '',
@@ -8976,32 +10048,7 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
    */
 
   function diagnosticReporter(diagnostic) {
-    throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, ts.sys.newLine));
-  }
-
-  function getTsconfigPath(tsconfigPath, extra) {
-    return path_1.default.isAbsolute(tsconfigPath) ? tsconfigPath : path_1.default.join(extra.tsconfigRootDir || process.cwd(), tsconfigPath);
-  }
-  /**
-   * Watches a file or directory for changes
-   */
-
-
-  function watch(path, options, extra) {
-    // an escape hatch to disable the file watchers as they can take a bit to initialise in some cases
-    // this also supports an env variable so it's easy to switch on/off from the CLI
-    if (process.env.PARSER_NO_WATCH === 'true' || extra.noWatch === true) {
-      return {
-        close: function close() {},
-        on: function on() {}
-      };
-    }
-
-    return chokidar_1.default.watch(path, Object.assign({
-      ignoreInitial: true,
-      persistent: false,
-      useFsEvents: false
-    }, options));
+    throw new Error(typescript_1.default.flattenDiagnosticMessageText(diagnostic.messageText, typescript_1.default.sys.newLine));
   }
   /**
    * Calculate project environments using options provided by consumer and paths from config
@@ -9013,153 +10060,53 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
    */
 
 
-  function calculateProjectParserOptions(code, filePath, extra) {
+  function getProgramsForProjects(code, filePath, extra) {
     var results = []; // preserve reference to code and file being linted
 
     currentLintOperationState.code = code;
     currentLintOperationState.filePath = filePath; // Update file version if necessary
     // TODO: only update when necessary, currently marks as changed on every lint
 
-    var watchCallbacks = watchCallbackTrackingMap.get(filePath);
+    var fileWatchCallbacks = fileWatchCallbackTrackingMap.get(filePath);
 
-    if (parsedFilesSeen.has(filePath) && watchCallbacks && watchCallbacks.size > 0) {
-      watchCallbacks.forEach(function (cb) {
-        return cb(filePath, ts.FileWatcherEventKind.Changed);
+    if (parsedFilesSeen.has(filePath) && fileWatchCallbacks && fileWatchCallbacks.size > 0) {
+      fileWatchCallbacks.forEach(function (cb) {
+        return cb(filePath, typescript_1.default.FileWatcherEventKind.Changed);
       });
     }
+    /*
+     * before we go into the process of attempting to find and update every program
+     * see if we know of a program that contains this file
+     */
+
 
     var _iteratorNormalCompletion = true;
     var _didIteratorError = false;
     var _iteratorError = undefined;
 
     try {
-      var _loop = function _loop() {
+      for (var _iterator = extra.projects[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
         var rawTsconfigPath = _step.value;
-        var tsconfigPath = getTsconfigPath(rawTsconfigPath, extra);
+        var tsconfigPath = shared$1.getTsconfigPath(rawTsconfigPath, extra);
         var existingWatch = knownWatchProgramMap.get(tsconfigPath);
 
-        if (typeof existingWatch !== 'undefined') {
-          // get new program (updated if necessary)
-          var updatedProgram = existingWatch.getProgram().getProgram();
-          updatedProgram.getTypeChecker(); // sets parent pointers in source files
+        if (!existingWatch) {
+          continue;
+        }
 
-          results.push(updatedProgram);
-          return "continue";
-        } // create compiler host
+        var fileList = programFileListCache.get(tsconfigPath);
+        var updatedProgram = null;
 
+        if (!fileList) {
+          updatedProgram = existingWatch.getProgram().getProgram();
+          fileList = new Set(updatedProgram.getRootFileNames());
+          programFileListCache.set(tsconfigPath, fileList);
+        }
 
-        var watchCompilerHost = ts.createWatchCompilerHost(tsconfigPath, exports.defaultCompilerOptions, ts.sys, ts.createSemanticDiagnosticsBuilderProgram, diagnosticReporter,
-        /*reportWatchStatus*/
-        function () {}); // ensure readFile reads the code being linted instead of the copy on disk
-
-        var oldReadFile = watchCompilerHost.readFile;
-
-        watchCompilerHost.readFile = function (filePath, encoding) {
-          return path_1.default.normalize(filePath) === path_1.default.normalize(currentLintOperationState.filePath) ? currentLintOperationState.code : oldReadFile(filePath, encoding);
-        }; // ensure process reports error on failure instead of exiting process immediately
-
-
-        watchCompilerHost.onUnRecoverableConfigFileDiagnostic = diagnosticReporter; // ensure process doesn't emit programs
-
-        watchCompilerHost.afterProgramCreate = function (program) {
-          // report error if there are any errors in the config file
-          var configFileDiagnostics = program.getConfigFileParsingDiagnostics().filter(function (diag) {
-            return diag.category === ts.DiagnosticCategory.Error && diag.code !== 18003;
-          });
-
-          if (configFileDiagnostics.length > 0) {
-            diagnosticReporter(configFileDiagnostics[0]);
-          }
-        }; // in watch mode, eslint will give us the latest file contents
-        // store the watch callback so we can trigger an update with eslint's content
-
-
-        watchCompilerHost.watchFile = (() => {}) ||function (fileName, callback, interval) {
-          // specifically (and separately) watch the tsconfig file
-          // this allows us to react to changes in the tsconfig's include/exclude options
-          var watcher = null;
-
-          if (fileName.includes(tsconfigPath)) {
-            watcher = watch(fileName, {
-              interval
-            }, extra);
-            watcher.on('change', function (path) {
-              callback(path, ts.FileWatcherEventKind.Changed);
-            });
-            configSystemFileWatcherTrackingSet.add(watcher);
-          }
-
-          var normalizedFileName = path_1.default.normalize(fileName);
-
-          var watchers = function () {
-            var watchers = watchCallbackTrackingMap.get(normalizedFileName);
-
-            if (!watchers) {
-              watchers = new Set();
-              watchCallbackTrackingMap.set(normalizedFileName, watchers);
-            }
-
-            return watchers;
-          }();
-
-          watchers.add(callback);
-          return {
-            close: function close() {
-              watchers.delete(callback);
-
-              if (watcher) {
-                watcher.close();
-                configSystemFileWatcherTrackingSet.delete(watcher);
-              }
-            }
-          };
-        }; // when new files are added in watch mode, we need to tell typescript about those files
-        // if we don't then typescript will act like they don't exist.
-
-
-        watchCompilerHost.watchDirectory = (() => {}) ||function (dirPath, callback, recursive) {
-          var watcher = watch(dirPath, {
-            depth: recursive ? 0 : undefined,
-            interval: 250
-          }, extra);
-          watcher.on('add', function (path) {
-            callback(path);
-          });
-          directorySystemFileWatcherTrackingSet.add(watcher);
-          return {
-            close() {
-              watcher.close();
-              directorySystemFileWatcherTrackingSet.delete(watcher);
-            }
-
-          };
-        }; // allow files with custom extensions to be included in program (uses internal ts api)
-
-
-        var oldOnDirectoryStructureHostCreate = watchCompilerHost.onCachedDirectoryStructureHostCreate;
-
-        watchCompilerHost.onCachedDirectoryStructureHostCreate = function (host) {
-          var oldReadDirectory = host.readDirectory;
-
-          host.readDirectory = function (path, extensions, exclude, include, depth) {
-            return oldReadDirectory(path, !extensions ? undefined : extensions.concat(extra.extraFileExtensions), exclude, include, depth);
-          };
-
-          oldOnDirectoryStructureHostCreate(host);
-        }; // create program
-
-
-        var programWatch = ts.createWatchProgram(watchCompilerHost);
-        var program = programWatch.getProgram().getProgram(); // cache watch program and return current program
-
-        knownWatchProgramMap.set(tsconfigPath, programWatch);
-        results.push(program);
-      };
-
-      for (var _iterator = extra.projects[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        var _ret = _loop();
-
-        if (_ret === "continue") continue;
+        if (fileList.has(filePath)) {
+          log('Found existing program for file. %s', filePath);
+          return [updatedProgram || existingWatch.getProgram().getProgram()];
+        }
       }
     } catch (err) {
       _didIteratorError = true;
@@ -9176,54 +10123,545 @@ var tsconfigParser = createCommonjsModule(function (module, exports) {
       }
     }
 
-    parsedFilesSeen.add(filePath);
+    log('File did not belong to any existing programs, moving to create/update. %s', filePath);
+    /*
+     * We don't know of a program that contains the file, this means that either:
+     * - the required program hasn't been created yet, or
+     * - the file is new/renamed, and the program hasn't been updated.
+     */
+
+    var _iteratorNormalCompletion2 = true;
+    var _didIteratorError2 = false;
+    var _iteratorError2 = undefined;
+
+    try {
+      for (var _iterator2 = extra.projects[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+        var _rawTsconfigPath = _step2.value;
+
+        var _tsconfigPath = shared$1.getTsconfigPath(_rawTsconfigPath, extra);
+
+        var _existingWatch = knownWatchProgramMap.get(_tsconfigPath);
+
+        if (_existingWatch) {
+          var _updatedProgram = maybeInvalidateProgram(_existingWatch, filePath, _tsconfigPath);
+
+          if (!_updatedProgram) {
+            continue;
+          } // sets parent pointers in source files
+
+
+          _updatedProgram.getTypeChecker();
+
+          results.push(_updatedProgram);
+          continue;
+        }
+
+        var programWatch = createWatchProgram(_tsconfigPath, extra);
+        var program = programWatch.getProgram().getProgram(); // cache watch program and return current program
+
+        knownWatchProgramMap.set(_tsconfigPath, programWatch);
+        results.push(program);
+      }
+    } catch (err) {
+      _didIteratorError2 = true;
+      _iteratorError2 = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
+          _iterator2.return();
+        }
+      } finally {
+        if (_didIteratorError2) {
+          throw _iteratorError2;
+        }
+      }
+    }
+
     return results;
   }
 
-  exports.calculateProjectParserOptions = calculateProjectParserOptions;
-  /**
-   * Create program from single root file. Requires a single tsconfig to be specified.
-   * @param code The code being linted
-   * @param filePath The file being linted
-   * @param extra.tsconfigRootDir The root directory for relative tsconfig paths
-   * @param extra.projects Provided tsconfig paths
-   * @returns The program containing just the file being linted and associated library files
-   */
+  exports.getProgramsForProjects = getProgramsForProjects;
 
-  function createProgram(code, filePath, extra) {
-    if (!extra.projects || extra.projects.length !== 1) {
-      return undefined;
-    }
+  function createWatchProgram(tsconfigPath, extra) {
+    log('Creating watch program for %s.', tsconfigPath); // create compiler host
 
-    var tsconfigPath = getTsconfigPath(extra.projects[0], extra);
-    var commandLine = ts.getParsedCommandLineOfConfigFile(tsconfigPath, exports.defaultCompilerOptions, Object.assign(Object.assign({}, ts.sys), {
-      onUnRecoverableConfigFileDiagnostic: function onUnRecoverableConfigFileDiagnostic() {}
-    }));
+    var watchCompilerHost = typescript_1.default.createWatchCompilerHost(tsconfigPath, shared$1.DEFAULT_COMPILER_OPTIONS, typescript_1.default.sys, typescript_1.default.createSemanticDiagnosticsBuilderProgram, diagnosticReporter,
+    /*reportWatchStatus*/
+    function () {}); // ensure readFile reads the code being linted instead of the copy on disk
 
-    if (!commandLine) {
-      return undefined;
-    }
+    var oldReadFile = watchCompilerHost.readFile;
 
-    var compilerHost = ts.createCompilerHost(commandLine.options, true);
-    var oldReadFile = compilerHost.readFile;
+    watchCompilerHost.readFile = function (filePath, encoding) {
+      parsedFilesSeen.add(filePath);
+      return path_1.default.normalize(filePath) === path_1.default.normalize(currentLintOperationState.filePath) ? currentLintOperationState.code : oldReadFile(filePath, encoding);
+    }; // ensure process reports error on failure instead of exiting process immediately
 
-    compilerHost.readFile = function (fileName) {
-      return path_1.default.normalize(fileName) === path_1.default.normalize(filePath) ? code : oldReadFile(fileName);
+
+    watchCompilerHost.onUnRecoverableConfigFileDiagnostic = diagnosticReporter; // ensure process doesn't emit programs
+
+    watchCompilerHost.afterProgramCreate = function (program) {
+      // report error if there are any errors in the config file
+      var configFileDiagnostics = program.getConfigFileParsingDiagnostics().filter(function (diag) {
+        return diag.category === typescript_1.default.DiagnosticCategory.Error && diag.code !== 18003;
+      });
+
+      if (configFileDiagnostics.length > 0) {
+        diagnosticReporter(configFileDiagnostics[0]);
+      }
+    };
+    /*
+     * From the CLI, the file watchers won't matter, as the files will be parsed once and then forgotten.
+     * When running from an IDE, these watchers will let us tell typescript about changes.
+     *
+     * ESLint IDE plugins will send us unfinished file content as the user types (before it's saved to disk).
+     * We use the file watchers to tell typescript about this latest file content.
+     *
+     * When files are created (or renamed), we won't know about them because we have no filesystem watchers attached.
+     * We use the folder watchers to tell typescript it needs to go and find new files in the project folders.
+     */
+
+
+    watchCompilerHost.watchFile = saveWatchCallback(fileWatchCallbackTrackingMap);
+    watchCompilerHost.watchDirectory = saveWatchCallback(folderWatchCallbackTrackingMap); // allow files with custom extensions to be included in program (uses internal ts api)
+
+    var oldOnDirectoryStructureHostCreate = watchCompilerHost.onCachedDirectoryStructureHostCreate;
+
+    watchCompilerHost.onCachedDirectoryStructureHostCreate = function (host) {
+      var oldReadDirectory = host.readDirectory;
+
+      host.readDirectory = function (path, extensions, exclude, include, depth) {
+        return oldReadDirectory(path, !extensions ? undefined : extensions.concat(extra.extraFileExtensions), exclude, include, depth);
+      };
+
+      oldOnDirectoryStructureHostCreate(host);
+    };
+    /*
+     * The watch change callbacks TS provides us all have a 250ms delay before firing
+     * https://github.com/microsoft/TypeScript/blob/b845800bdfcc81c8c72e2ac6fdc2c1df0cdab6f9/src/compiler/watch.ts#L1013
+     *
+     * We live in a synchronous world, so we can't wait for that.
+     * This is a bit of a hack, but it lets us immediately force updates when we detect a tsconfig or directory change
+     */
+
+
+    var oldSetTimeout = watchCompilerHost.setTimeout;
+
+    watchCompilerHost.setTimeout = function (cb, ms) {
+      if (ms === 250) {
+        cb();
+        return null;
+      }
+
+      for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+        args[_key - 2] = arguments[_key];
+      }
+
+      return oldSetTimeout && oldSetTimeout.apply(void 0, [cb, ms].concat(args));
     };
 
-    return ts.createProgram([filePath], commandLine.options, compilerHost);
+    return typescript_1.default.createWatchProgram(watchCompilerHost);
   }
 
-  exports.createProgram = createProgram;
+  exports.createWatchProgram = createWatchProgram;
+
+  function hasTSConfigChanged(tsconfigPath) {
+    var stat = fs_1.default.statSync(tsconfigPath);
+    var lastModifiedAt = stat.mtimeMs;
+    var cachedLastModifiedAt = tsconfigLsatModifiedTimestampCache.get(tsconfigPath);
+    tsconfigLsatModifiedTimestampCache.set(tsconfigPath, lastModifiedAt);
+
+    if (cachedLastModifiedAt === undefined) {
+      return false;
+    }
+
+    return Math.abs(cachedLastModifiedAt - lastModifiedAt) > Number.EPSILON;
+  }
+
+  function maybeInvalidateProgram(existingWatch, filePath, tsconfigPath) {
+    /*
+     * By calling watchProgram.getProgram(), it will trigger a resync of the program based on
+     * whatever new file content we've given it from our input.
+     */
+    var updatedProgram = existingWatch.getProgram().getProgram(); // In case this change causes problems in larger real world codebases
+    // Provide an escape hatch so people don't _have_ to revert to an older version
+
+    if (process.env.TSESTREE_NO_INVALIDATION === 'true') {
+      return updatedProgram;
+    }
+
+    if (hasTSConfigChanged(tsconfigPath)) {
+      /*
+       * If the stat of the tsconfig has changed, that could mean the include/exclude/files lists has changed
+       * We need to make sure typescript knows this so it can update appropriately
+       */
+      log('tsconfig has changed - triggering program update. %s', tsconfigPath);
+      fileWatchCallbackTrackingMap.get(tsconfigPath).forEach(function (cb) {
+        return cb(tsconfigPath, typescript_1.default.FileWatcherEventKind.Changed);
+      }); // tsconfig change means that the file list more than likely changed, so clear the cache
+
+      programFileListCache.delete(tsconfigPath);
+    }
+
+    var sourceFile = updatedProgram.getSourceFile(filePath);
+
+    if (sourceFile) {
+      return updatedProgram;
+    }
+    /*
+     * Missing source file means our program's folder structure might be out of date.
+     * So we need to tell typescript it needs to update the correct folder.
+     */
+
+
+    log('File was not found in program - triggering folder update. %s', filePath); // Find the correct directory callback by climbing the folder tree
+
+    var current = null;
+    var next = path_1.default.dirname(filePath);
+    var hasCallback = false;
+
+    while (current !== next) {
+      current = next;
+      var folderWatchCallbacks = folderWatchCallbackTrackingMap.get(current);
+
+      if (folderWatchCallbacks) {
+        folderWatchCallbacks.forEach(function (cb) {
+          return cb(current, typescript_1.default.FileWatcherEventKind.Changed);
+        });
+        hasCallback = true;
+        break;
+      }
+
+      next = path_1.default.dirname(current);
+    }
+
+    if (!hasCallback) {
+      /*
+       * No callback means the paths don't matchup - so no point returning any program
+       * this will signal to the caller to skip this program
+       */
+      log('No callback found for file, not part of this program. %s', filePath);
+      return null;
+    } // directory update means that the file list more than likely changed, so clear the cache
+
+
+    programFileListCache.delete(tsconfigPath); // force the immediate resync
+
+    updatedProgram = existingWatch.getProgram().getProgram();
+    sourceFile = updatedProgram.getSourceFile(filePath);
+
+    if (sourceFile) {
+      return updatedProgram;
+    }
+    /*
+     * At this point we're in one of two states:
+     * - The file isn't supposed to be in this program due to exclusions
+     * - The file is new, and was renamed from an old, included filename
+     *
+     * For the latter case, we need to tell typescript that the old filename is now deleted
+     */
+
+
+    log('File was still not found in program after directory update - checking file deletions. %s', filePath);
+    var rootFilenames = updatedProgram.getRootFileNames(); // use find because we only need to "delete" one file to cause typescript to do a full resync
+
+    var deletedFile = rootFilenames.find(function (file) {
+      return !fs_1.default.existsSync(file);
+    });
+
+    if (!deletedFile) {
+      // There are no deleted files, so it must be the former case of the file not belonging to this program
+      return null;
+    }
+
+    var fileWatchCallbacks = fileWatchCallbackTrackingMap.get(deletedFile);
+
+    if (!fileWatchCallbacks) {
+      // shouldn't happen, but just in case
+      log('Could not find watch callbacks for root file. %s', deletedFile);
+      return updatedProgram;
+    }
+
+    log('Marking file as deleted. %s', deletedFile);
+    fileWatchCallbacks.forEach(function (cb) {
+      return cb(deletedFile, typescript_1.default.FileWatcherEventKind.Deleted);
+    }); // deleted files means that the file list _has_ changed, so clear the cache
+
+    programFileListCache.delete(tsconfigPath);
+    updatedProgram = existingWatch.getProgram().getProgram();
+    sourceFile = updatedProgram.getSourceFile(filePath);
+
+    if (sourceFile) {
+      return updatedProgram;
+    }
+
+    log('File was still not found in program after deletion check, assuming it is not part of this program. %s', filePath);
+    return null;
+  }
 });
-unwrapExports(tsconfigParser);
-var tsconfigParser_1 = tsconfigParser.defaultCompilerOptions;
-var tsconfigParser_2 = tsconfigParser.clearCaches;
-var tsconfigParser_3 = tsconfigParser.calculateProjectParserOptions;
-var tsconfigParser_4 = tsconfigParser.createProgram;
+unwrapExports(createWatchProgram_1);
+var createWatchProgram_2 = createWatchProgram_1.clearCaches;
+var createWatchProgram_3 = createWatchProgram_1.getProgramsForProjects;
+var createWatchProgram_4 = createWatchProgram_1.createWatchProgram;
+
+var createProjectProgram_1 = createCommonjsModule(function (module, exports) {
+
+  var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function (mod) {
+    return mod && mod.__esModule ? mod : {
+      "default": mod
+    };
+  };
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+
+  var debug_1 = __importDefault(src);
+
+  var path_1 = __importDefault(path$1);
+
+  var log = debug_1.default('typescript-eslint:typescript-estree:createProjectProgram');
+  /**
+   * @param code The code of the file being linted
+   * @param options The config object
+   * @returns If found, returns the source file corresponding to the code and the containing program
+   */
+
+  function createProjectProgram(code, createDefaultProgram, extra) {
+    log('Creating project program for: %s', extra.filePath);
+    var astAndProgram = nodeUtils.firstDefined(createWatchProgram_1.getProgramsForProjects(code, extra.filePath, extra), function (currentProgram) {
+      var ast = currentProgram.getSourceFile(extra.filePath);
+      return ast && {
+        ast,
+        program: currentProgram
+      };
+    });
+
+    if (!astAndProgram && !createDefaultProgram) {
+      // the file was either not matched within the tsconfig, or the extension wasn't expected
+      var errorLines = ['"parserOptions.project" has been set for @typescript-eslint/parser.', `The file does not match your project config: ${path_1.default.relative(process.cwd(), extra.filePath)}.`];
+      var hasMatchedAnError = false;
+      var fileExtension = path_1.default.extname(extra.filePath);
+
+      if (!['.ts', '.tsx', '.js', '.jsx'].includes(fileExtension)) {
+        var nonStandardExt = `The extension for the file (${fileExtension}) is non-standard`;
+
+        if (extra.extraFileExtensions && extra.extraFileExtensions.length > 0) {
+          if (!extra.extraFileExtensions.includes(fileExtension)) {
+            errorLines.push(`${nonStandardExt}. It should be added to your existing "parserOptions.extraFileExtensions".`);
+            hasMatchedAnError = true;
+          }
+        } else {
+          errorLines.push(`${nonStandardExt}. You should add "parserOptions.extraFileExtensions" to your config.`);
+          hasMatchedAnError = true;
+        }
+      }
+
+      if (!hasMatchedAnError) {
+        errorLines.push('The file must be included in at least one of the projects provided.');
+        hasMatchedAnError = true;
+      }
+
+      throw new Error(errorLines.join('\n'));
+    }
+
+    return astAndProgram;
+  }
+
+  exports.createProjectProgram = createProjectProgram;
+});
+unwrapExports(createProjectProgram_1);
+var createProjectProgram_2 = createProjectProgram_1.createProjectProgram;
+
+var createSourceFile_1 = createCommonjsModule(function (module, exports) {
+
+  var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function (mod) {
+    return mod && mod.__esModule ? mod : {
+      "default": mod
+    };
+  };
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+
+  var debug_1 = __importDefault(src);
+
+  var typescript_1 = __importDefault(typescript);
+
+  var log = debug_1.default('typescript-eslint:typescript-estree:createIsolatedProgram');
+
+  function createSourceFile(code, extra) {
+    log('Getting AST without type information for: %s', extra.filePath);
+    return typescript_1.default.createSourceFile(extra.filePath, code, typescript_1.default.ScriptTarget.Latest,
+    /* setParentNodes */
+    true);
+  }
+
+  exports.createSourceFile = createSourceFile;
+});
+unwrapExports(createSourceFile_1);
+var createSourceFile_2 = createSourceFile_1.createSourceFile;
+
+var semanticOrSyntacticErrors = createCommonjsModule(function (module, exports) {
+
+  var __importStar = commonjsGlobal && commonjsGlobal.__importStar || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) {
+      if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    }
+    result["default"] = mod;
+    return result;
+  };
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+
+  var ts = __importStar(typescript); // leave this as * as ts so people using util package don't need syntheticDefaultImports
+
+  /**
+   * By default, diagnostics from the TypeScript compiler contain all errors - regardless of whether
+   * they are related to generic ECMAScript standards, or TypeScript-specific constructs.
+   *
+   * Therefore, we filter out all diagnostics, except for the ones we explicitly want to consider when
+   * the user opts in to throwing errors on semantic issues.
+   */
+
+
+  function getFirstSemanticOrSyntacticError(program, ast) {
+    try {
+      var supportedSyntacticDiagnostics = whitelistSupportedDiagnostics(program.getSyntacticDiagnostics(ast));
+
+      if (supportedSyntacticDiagnostics.length) {
+        return convertDiagnosticToSemanticOrSyntacticError(supportedSyntacticDiagnostics[0]);
+      }
+
+      var supportedSemanticDiagnostics = whitelistSupportedDiagnostics(program.getSemanticDiagnostics(ast));
+
+      if (supportedSemanticDiagnostics.length) {
+        return convertDiagnosticToSemanticOrSyntacticError(supportedSemanticDiagnostics[0]);
+      }
+
+      return undefined;
+    } catch (e) {
+      /**
+       * TypeScript compiler has certain Debug.fail() statements in, which will cause the diagnostics
+       * retrieval above to throw.
+       *
+       * E.g. from ast-alignment-tests
+       * "Debug Failure. Shouldn't ever directly check a JsxOpeningElement"
+       *
+       * For our current use-cases this is undesired behavior, so we just suppress it
+       * and log a a warning.
+       */
+
+      /* istanbul ignore next */
+      console.warn(`Warning From TSC: "${e.message}`); // eslint--disable-line no-console
+
+      /* istanbul ignore next */
+
+      return undefined;
+    }
+  }
+
+  exports.getFirstSemanticOrSyntacticError = getFirstSemanticOrSyntacticError;
+
+  function whitelistSupportedDiagnostics(diagnostics) {
+    return diagnostics.filter(function (diagnostic) {
+      switch (diagnostic.code) {
+        case 1013: // ts 3.2 "A rest parameter or binding pattern may not have a trailing comma."
+
+        case 1014: // ts 3.2 "A rest parameter must be last in a parameter list."
+
+        case 1044: // ts 3.2 "'{0}' modifier cannot appear on a module or namespace element."
+
+        case 1045: // ts 3.2 "A '{0}' modifier cannot be used with an interface declaration."
+
+        case 1048: // ts 3.2 "A rest parameter cannot have an initializer."
+
+        case 1049: // ts 3.2 "A 'set' accessor must have exactly one parameter."
+
+        case 1070: // ts 3.2 "'{0}' modifier cannot appear on a type member."
+
+        case 1071: // ts 3.2 "'{0}' modifier cannot appear on an index signature."
+
+        case 1085: // ts 3.2 "Octal literals are not available when targeting ECMAScript 5 and higher. Use the syntax '{0}'."
+
+        case 1090: // ts 3.2 "'{0}' modifier cannot appear on a parameter."
+
+        case 1096: // ts 3.2 "An index signature must have exactly one parameter."
+
+        case 1097: // ts 3.2 "'{0}' list cannot be empty."
+
+        case 1098: // ts 3.3 "Type parameter list cannot be empty."
+
+        case 1099: // ts 3.3 "Type argument list cannot be empty."
+
+        case 1117: // ts 3.2 "An object literal cannot have multiple properties with the same name in strict mode."
+
+        case 1121: // ts 3.2 "Octal literals are not allowed in strict mode."
+
+        case 1123: // ts 3.2: "Variable declaration list cannot be empty."
+
+        case 1141: // ts 3.2 "String literal expected."
+
+        case 1162: // ts 3.2 "An object member cannot be declared optional."
+
+        case 1172: // ts 3.2 "'extends' clause already seen."
+
+        case 1173: // ts 3.2 "'extends' clause must precede 'implements' clause."
+
+        case 1175: // ts 3.2 "'implements' clause already seen."
+
+        case 1176: // ts 3.2 "Interface declaration cannot have 'implements' clause."
+
+        case 1190: // ts 3.2 "The variable declaration of a 'for...of' statement cannot have an initializer."
+
+        case 1200: // ts 3.2 "Line terminator not permitted before arrow."
+
+        case 1206: // ts 3.2 "Decorators are not valid here."
+
+        case 1211: // ts 3.2 "A class declaration without the 'default' modifier must have a name."
+
+        case 1242: // ts 3.2 "'abstract' modifier can only appear on a class, method, or property declaration."
+
+        case 1246: // ts 3.2 "An interface property cannot have an initializer."
+
+        case 1255: // ts 3.2 "A definite assignment assertion '!' is not permitted in this context."
+
+        case 1308: // ts 3.2 "'await' expression is only allowed within an async function."
+
+        case 2364: // ts 3.2 "The left-hand side of an assignment expression must be a variable or a property access."
+
+        case 2369: // ts 3.2 "A parameter property is only allowed in a constructor implementation."
+
+        case 2462: // ts 3.2 "A rest element must be last in a destructuring pattern."
+
+        case 8017: // ts 3.2 "Octal literal types must use ES2015 syntax. Use the syntax '{0}'."
+
+        case 17012: // ts 3.2 "'{0}' is not a valid meta-property for keyword '{1}'. Did you mean '{2}'?"
+
+        case 17013:
+          // ts 3.2 "Meta-property '{0}' is only allowed in the body of a function declaration, function expression, or constructor."
+          return true;
+      }
+
+      return false;
+    });
+  }
+
+  function convertDiagnosticToSemanticOrSyntacticError(diagnostic) {
+    return Object.assign(Object.assign({}, diagnostic), {
+      message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ts.sys.newLine)
+    });
+  }
+});
+unwrapExports(semanticOrSyntacticErrors);
+var semanticOrSyntacticErrors_1 = semanticOrSyntacticErrors.getFirstSemanticOrSyntacticError;
 
 var name = "@typescript-eslint/typescript-estree";
-var version = "2.4.0";
+var version = "2.5.0";
 var description = "A parser that converts TypeScript source code into an ESTree compatible form";
 var main = "dist/parser.js";
 var types = "dist/parser.d.ts";
@@ -9262,7 +10700,7 @@ var scripts = {
 	typecheck: "tsc -p tsconfig.json --noEmit"
 };
 var dependencies = {
-	chokidar: "^3.0.2",
+	debug: "^4.1.1",
 	glob: "^7.1.4",
 	"is-glob": "^4.0.1",
 	"lodash.unescape": "4.0.1",
@@ -9273,20 +10711,26 @@ var devDependencies = {
 	"@babel/parser": "7.5.5",
 	"@babel/types": "^7.3.2",
 	"@types/babel-code-frame": "^6.20.1",
+	"@types/debug": "^4.1.5",
 	"@types/glob": "^7.1.1",
 	"@types/is-glob": "^4.0.1",
 	"@types/lodash.isplainobject": "^4.0.4",
 	"@types/lodash.unescape": "^4.0.4",
 	"@types/semver": "^6.0.1",
 	"@types/tmp": "^0.1.0",
-	"@typescript-eslint/shared-fixtures": "2.4.0",
+	"@typescript-eslint/shared-fixtures": "2.5.0",
 	"babel-code-frame": "^6.26.0",
 	glob: "^7.1.4",
 	"lodash.isplainobject": "4.0.6",
 	tmp: "^0.1.0",
 	typescript: "*"
 };
-var gitHead = "111ecc668eb8a332d7311dacf196fceec83316cb";
+var peerDependenciesMeta = {
+	typescript: {
+		optional: true
+	}
+};
+var gitHead = "fd39bbd8e973ef7b658740e00928d86af0140113";
 var _package = {
 	name: name,
 	version: version,
@@ -9302,6 +10746,7 @@ var _package = {
 	scripts: scripts,
 	dependencies: dependencies,
 	devDependencies: devDependencies,
+	peerDependenciesMeta: peerDependenciesMeta,
 	gitHead: gitHead
 };
 
@@ -9321,11 +10766,12 @@ var _package$1 = /*#__PURE__*/Object.freeze({
 	scripts: scripts,
 	dependencies: dependencies,
 	devDependencies: devDependencies,
+	peerDependenciesMeta: peerDependenciesMeta,
 	gitHead: gitHead,
 	'default': _package
 });
 
-var require$$4 = getCjsExportFromNamespace(_package$1);
+var require$$3 = getCjsExportFromNamespace(_package$1);
 
 var parser = createCommonjsModule(function (module, exports) {
 
@@ -9355,8 +10801,6 @@ var parser = createCommonjsModule(function (module, exports) {
     value: true
   });
 
-  var path_1 = __importDefault(path$1);
-
   var semver_1 = __importDefault(semver);
 
   var ts = __importStar(typescript); // leave this as * as ts so people using util package don't need syntheticDefaultImports
@@ -9369,11 +10813,33 @@ var parser = createCommonjsModule(function (module, exports) {
    */
 
 
-  var SUPPORTED_TYPESCRIPT_VERSIONS = '>=3.2.1 <3.8.0';
+  var SUPPORTED_TYPESCRIPT_VERSIONS = '>=3.2.1 <3.8.0 || >3.7.0-dev.0';
   var ACTIVE_TYPESCRIPT_VERSION = ts.version;
   var isRunningSupportedTypeScriptVersion = semver_1.default.satisfies(ACTIVE_TYPESCRIPT_VERSION, SUPPORTED_TYPESCRIPT_VERSIONS);
   var extra;
   var warnedAboutTSVersion = false;
+
+  function enforceString(code) {
+    /**
+     * Ensure the source code is a string
+     */
+    if (typeof code !== 'string') {
+      return String(code);
+    }
+
+    return code;
+  }
+  /**
+   * @param code The code of the file being linted
+   * @param options The config object
+   * @param shouldProvideParserServices True iff the program should be attempted to be calculated from provided tsconfig files
+   * @returns Returns a source file and program corresponding to the linted code
+   */
+
+
+  function getProgramAndAST(code, shouldProvideParserServices, shouldCreateDefaultProgram) {
+    return shouldProvideParserServices && createProjectProgram_1.createProjectProgram(code, shouldCreateDefaultProgram, extra) || shouldProvideParserServices && shouldCreateDefaultProgram && createDefaultProgram_1.createDefaultProgram(code, extra) || createIsolatedProgram_1.createIsolatedProgram(code, extra);
+  }
   /**
    * Compute the filename based on the parser options.
    *
@@ -9383,8 +10849,11 @@ var parser = createCommonjsModule(function (module, exports) {
    * @param options Parser options
    */
 
-  function getFileName(_ref) {
-    var jsx = _ref.jsx;
+
+  function getFileName() {
+    var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+        jsx = _ref.jsx;
+
     return jsx ? 'estree.tsx' : 'estree.ts';
   }
   /**
@@ -9401,10 +10870,10 @@ var parser = createCommonjsModule(function (module, exports) {
       errorOnTypeScriptSyntacticAndSemanticIssues: false,
       errorOnUnknownASTType: false,
       extraFileExtensions: [],
+      filePath: getFileName(),
       jsx: false,
       loc: false,
       log: console.log,
-      noWatch: false,
       preserveNodeMaps: undefined,
       projects: [],
       range: false,
@@ -9414,149 +10883,11 @@ var parser = createCommonjsModule(function (module, exports) {
       useJSXTextNode: false
     };
   }
-  /**
-   * @param code The code of the file being linted
-   * @param options The config object
-   * @returns If found, returns the source file corresponding to the code and the containing program
-   */
-
-
-  function getASTFromProject(code, options, createDefaultProgram) {
-    var filePath = options.filePath || getFileName(options);
-    var astAndProgram = nodeUtils.firstDefined(tsconfigParser.calculateProjectParserOptions(code, filePath, extra), function (currentProgram) {
-      var ast = currentProgram.getSourceFile(filePath);
-      return ast && {
-        ast,
-        program: currentProgram
-      };
-    });
-
-    if (!astAndProgram && !createDefaultProgram) {
-      // the file was either not matched within the tsconfig, or the extension wasn't expected
-      var errorLines = ['"parserOptions.project" has been set for @typescript-eslint/parser.', `The file does not match your project config: ${filePath}.`];
-      var hasMatchedAnError = false;
-      var fileExtension = path_1.default.extname(filePath);
-
-      if (!['.ts', '.tsx', '.js', '.jsx'].includes(fileExtension)) {
-        var nonStandardExt = `The extension for the file (${fileExtension}) is non-standard`;
-
-        if (extra.extraFileExtensions && extra.extraFileExtensions.length > 0) {
-          if (!extra.extraFileExtensions.includes(fileExtension)) {
-            errorLines.push(`${nonStandardExt}. It should be added to your existing "parserOptions.extraFileExtensions".`);
-            hasMatchedAnError = true;
-          }
-        } else {
-          errorLines.push(`${nonStandardExt}. You should add "parserOptions.extraFileExtensions" to your config.`);
-          hasMatchedAnError = true;
-        }
-      }
-
-      if (!hasMatchedAnError) {
-        errorLines.push('The file must be included in at least one of the projects provided.');
-        hasMatchedAnError = true;
-      }
-
-      throw new Error(errorLines.join('\n'));
-    }
-
-    return astAndProgram;
-  }
-  /**
-   * @param code The code of the file being linted
-   * @param options The config object
-   * @returns If found, returns the source file corresponding to the code and the containing program
-   */
-
-
-  function getASTAndDefaultProject(code, options) {
-    var fileName = options.filePath || getFileName(options);
-    var program = tsconfigParser.createProgram(code, fileName, extra);
-    var ast = program && program.getSourceFile(fileName);
-    return ast && {
-      ast,
-      program
-    };
-  }
-  /**
-   * @param code The code of the file being linted
-   * @returns Returns a new source file and program corresponding to the linted code
-   */
-
-
-  function createNewProgram(code) {
-    var FILENAME = getFileName(extra);
-    var compilerHost = {
-      fileExists() {
-        return true;
-      },
-
-      getCanonicalFileName() {
-        return FILENAME;
-      },
-
-      getCurrentDirectory() {
-        return '';
-      },
-
-      getDirectories() {
-        return [];
-      },
-
-      getDefaultLibFileName() {
-        return 'lib.d.ts';
-      },
-
-      // TODO: Support Windows CRLF
-      getNewLine() {
-        return '\n';
-      },
-
-      getSourceFile(filename) {
-        return ts.createSourceFile(filename, code, ts.ScriptTarget.Latest, true);
-      },
-
-      readFile() {
-        return undefined;
-      },
-
-      useCaseSensitiveFileNames() {
-        return true;
-      },
-
-      writeFile() {
-        return null;
-      }
-
-    };
-    var program = ts.createProgram([FILENAME], Object.assign({
-      noResolve: true,
-      target: ts.ScriptTarget.Latest,
-      jsx: extra.jsx ? ts.JsxEmit.Preserve : undefined
-    }, tsconfigParser.defaultCompilerOptions), compilerHost);
-    var ast = program.getSourceFile(FILENAME);
-    return {
-      ast,
-      program
-    };
-  }
-  /**
-   * @param code The code of the file being linted
-   * @param options The config object
-   * @param shouldProvideParserServices True iff the program should be attempted to be calculated from provided tsconfig files
-   * @returns Returns a source file and program corresponding to the linted code
-   */
-
-
-  function getProgramAndAST(code, options, shouldProvideParserServices, createDefaultProgram) {
-    return shouldProvideParserServices && getASTFromProject(code, options, createDefaultProgram) || shouldProvideParserServices && createDefaultProgram && getASTAndDefaultProject(code, options) || createNewProgram(code);
-  }
 
   function applyParserOptionsToExtra(options) {
-    extra.noWatch = typeof options.noWatch === 'boolean' && options.noWatch;
     /**
      * Track range information in the AST
      */
-
     extra.range = typeof options.range === 'boolean' && options.range;
     extra.loc = typeof options.loc === 'boolean' && options.loc;
     /**
@@ -9582,6 +10913,16 @@ var parser = createCommonjsModule(function (module, exports) {
 
     if (typeof options.jsx === 'boolean' && options.jsx) {
       extra.jsx = true;
+    }
+    /**
+     * Get the file extension
+     */
+
+
+    if (typeof options.filePath === 'string' && options.filePath !== '<input>') {
+      extra.filePath = options.filePath;
+    } else {
+      extra.filePath = getFileName(extra);
     }
     /**
      * The JSX AST changed the node type for string literals
@@ -9662,7 +11003,7 @@ var parser = createCommonjsModule(function (module, exports) {
   function warnAboutTSVersion() {
     if (!isRunningSupportedTypeScriptVersion && !warnedAboutTSVersion) {
       var border = '=============';
-      var versionWarning = [border, 'WARNING: You are currently running a version of TypeScript which is not officially supported by typescript-estree.', 'You may find that it works just fine, or you may not.', `SUPPORTED TYPESCRIPT VERSIONS: ${SUPPORTED_TYPESCRIPT_VERSIONS}`, `YOUR TYPESCRIPT VERSION: ${ACTIVE_TYPESCRIPT_VERSION}`, 'Please only submit bug reports when using the officially supported version.', border];
+      var versionWarning = [border, 'WARNING: You are currently running a version of TypeScript which is not officially supported by @typescript-eslint/typescript-estree.', 'You may find that it works just fine, or you may not.', `SUPPORTED TYPESCRIPT VERSIONS: ${SUPPORTED_TYPESCRIPT_VERSIONS}`, `YOUR TYPESCRIPT VERSION: ${ACTIVE_TYPESCRIPT_VERSION}`, 'Please only submit bug reports when using the officially supported version.', border];
       extra.log(versionWarning.join('\n\n'));
       warnedAboutTSVersion = true;
     }
@@ -9671,7 +11012,8 @@ var parser = createCommonjsModule(function (module, exports) {
   //------------------------------------------------------------------------------
 
 
-  exports.version = require$$4.version;
+  var version = require$$3.version;
+  exports.version = version;
 
   function parse(code, options) {
     /**
@@ -9688,13 +11030,9 @@ var parser = createCommonjsModule(function (module, exports) {
     /**
      * Ensure the source code is a string, and store a reference to it
      */
-    // eslint--disable-next-line @typescript-eslint/no-explicit-any
 
 
-    if (typeof code !== 'string' && !(code instanceof String)) {
-      code = String(code);
-    }
-
+    code = enforceString(code);
     extra.code = code;
     /**
      * Apply the given parser options
@@ -9714,9 +11052,7 @@ var parser = createCommonjsModule(function (module, exports) {
      * parse
      */
 
-    var ast = ts.createSourceFile(getFileName(extra), code, ts.ScriptTarget.Latest,
-    /* setParentNodes */
-    true);
+    var ast = createSourceFile_1.createSourceFile(code, extra);
     /**
      * Convert the TypeScript AST to an ESTree-compatible one
      */
@@ -9737,12 +11073,8 @@ var parser = createCommonjsModule(function (module, exports) {
     /**
      * Ensure the source code is a string, and store a reference to it
      */
-    // eslint--disable-next-line @typescript-eslint/no-explicit-any
 
-    if (typeof code !== 'string' && !(code instanceof String)) {
-      code = String(code);
-    }
-
+    code = enforceString(code);
     extra.code = code;
     /**
      * Apply the given parser options
@@ -9768,7 +11100,7 @@ var parser = createCommonjsModule(function (module, exports) {
 
     var shouldProvideParserServices = extra.projects && extra.projects.length > 0;
 
-    var _getProgramAndAST = getProgramAndAST(code, options, shouldProvideParserServices, extra.createDefaultProgram),
+    var _getProgramAndAST = getProgramAndAST(code, shouldProvideParserServices, extra.createDefaultProgram),
         ast = _getProgramAndAST.ast,
         program = _getProgramAndAST.program;
     /**
@@ -9818,8 +11150,7 @@ var parser = createCommonjsModule(function (module, exports) {
 
   __export(tsEstree$1);
 
-  var tsconfig_parser_2 = tsconfigParser;
-  exports.clearCaches = tsconfig_parser_2.clearCaches;
+  exports.clearCaches = createWatchProgram_1.clearCaches;
 });
 var parser$1 = unwrapExports(parser);
 var parser_1 = parser.version;

@@ -20,5 +20,5 @@ export default {
       exclude: [/\/core-js\//],
     }),
   ],
-  external: ['typescript', 'chokidar', '@microsoft/typescript-etw', 'glob'],
+  external: ['typescript', '@microsoft/typescript-etw', 'glob'],
 }
