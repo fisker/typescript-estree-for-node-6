@@ -32,12 +32,12 @@ var check = function (it) {
 
 // https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
 var global_1 =
-  // eslint-disable-next-line no-undef
+  // eslint--disable-next-line no-undef
   check(typeof globalThis == 'object' && globalThis) ||
   check(typeof window == 'object' && window) ||
   check(typeof self == 'object' && self) ||
   check(typeof commonjsGlobal == 'object' && commonjsGlobal) ||
-  // eslint-disable-next-line no-new-func
+  // eslint--disable-next-line no-new-func
   Function('return this')();
 
 var fails = function (exec) {
@@ -90,7 +90,7 @@ var split = ''.split;
 // fallback for non-array-like ES3 and non-enumerable old V8 strings
 var indexedObject = fails(function () {
   // throws an error in rhino, see https://github.com/mozilla/rhino/issues/346
-  // eslint-disable-next-line no-prototype-builtins
+  // eslint--disable-next-line no-prototype-builtins
   return !Object('z').propertyIsEnumerable(0);
 }) ? function (it) {
   return classofRaw(it) == 'String' ? split.call(it, '') : Object(it);
@@ -378,10 +378,10 @@ var createMethod = function (IS_INCLUDES) {
     var index = toAbsoluteIndex(fromIndex, length);
     var value;
     // Array#includes uses SameValueZero equality algorithm
-    // eslint-disable-next-line no-self-compare
+    // eslint--disable-next-line no-self-compare
     if (IS_INCLUDES && el != el) while (length > index) {
       value = O[index++];
-      // eslint-disable-next-line no-self-compare
+      // eslint--disable-next-line no-self-compare
       if (value != value) return true;
     // Array#indexOf ignores holes, Array#includes - not
     } else for (;length > index; index++) {
@@ -555,7 +555,7 @@ var createProperty = function (object, key, value) {
 
 var nativeSymbol = !!Object.getOwnPropertySymbols && !fails(function () {
   // Chrome 38 Symbol has incorrect toString conversion
-  // eslint-disable-next-line no-undef
+  // eslint--disable-next-line no-undef
   return !String(Symbol());
 });
 
@@ -621,7 +621,7 @@ var FORCED = !IS_CONCAT_SPREADABLE_SUPPORT || !SPECIES_SUPPORT;
 // https://tc39.github.io/ecma262/#sec-array.prototype.concat
 // with adding support of @@isConcatSpreadable and @@species
 _export({ target: 'Array', proto: true, forced: FORCED }, {
-  concat: function concat(arg) { // eslint-disable-line no-unused-vars
+  concat: function concat(arg) { // eslint--disable-line no-unused-vars
     var O = toObject(this);
     var A = arraySpeciesCreate(O, 0);
     var n = 0;
@@ -793,7 +793,7 @@ _export({ target: 'Array', proto: true, forced: !arrayMethodHasSpeciesSupport('s
 var sloppyArrayMethod = function (METHOD_NAME, argument) {
   var method = [][METHOD_NAME];
   return !method || !fails(function () {
-    // eslint-disable-next-line no-useless-call,no-throw-literal
+    // eslint--disable-next-line no-useless-call,no-throw-literal
     method.call(null, argument || function () { throw 1; }, 1);
   });
 };
@@ -875,7 +875,7 @@ var aPossiblePrototype = function (it) {
 // `Object.setPrototypeOf` method
 // https://tc39.github.io/ecma262/#sec-object.setprototypeof
 // Works with __proto__ only. Old v8 can't work with null proto objects.
-/* eslint-disable no-proto */
+/* eslint--disable no-proto */
 var objectSetPrototypeOf = Object.setPrototypeOf || ('__proto__' in {} ? function () {
   var CORRECT_SETTER = false;
   var test = {};
@@ -1502,7 +1502,7 @@ fixRegexpWellKnownSymbolLogic('split', 2, function (SPLIT, nativeSplit, maybeCal
 }, !SUPPORTS_Y);
 
 // a string of all valid unicode whitespaces
-// eslint-disable-next-line max-len
+// eslint--disable-next-line max-len
 var whitespaces = '\u0009\u000A\u000B\u000C\u000D\u0020\u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF';
 
 var whitespace = '[' + whitespaces + ']';
@@ -3905,13 +3905,13 @@ var nativeAssign = Object.assign;
 var objectAssign = !nativeAssign || fails(function () {
   var A = {};
   var B = {};
-  // eslint-disable-next-line no-undef
+  // eslint--disable-next-line no-undef
   var symbol = Symbol();
   var alphabet = 'abcdefghijklmnopqrst';
   A[symbol] = 7;
   alphabet.split('').forEach(function (chr) { B[chr] = chr; });
   return nativeAssign({}, A)[symbol] != 7 || objectKeys(nativeAssign({}, B)).join('') != alphabet;
-}) ? function assign(target, source) { // eslint-disable-line no-unused-vars
+}) ? function assign(target, source) { // eslint--disable-line no-unused-vars
   var T = toObject(target);
   var argumentsLength = arguments.length;
   var index = 1;
@@ -4108,7 +4108,7 @@ try {
   iteratorWithReturn[ITERATOR$4] = function () {
     return this;
   };
-  // eslint-disable-next-line no-throw-literal
+  // eslint--disable-next-line no-throw-literal
   Array.from(iteratorWithReturn, function () { throw 2; });
 } catch (error) { /* empty */ }
 
@@ -4155,7 +4155,7 @@ var collection = function (CONSTRUCTOR_NAME, wrapper, common, IS_MAP, IS_WEAK) {
     );
   };
 
-  // eslint-disable-next-line max-len
+  // eslint--disable-next-line max-len
   if (isForced_1(CONSTRUCTOR_NAME, typeof NativeConstructor != 'function' || !(IS_WEAK || NativePrototype.forEach && !fails(function () {
     new NativeConstructor().entries().next();
   })))) {
@@ -4169,7 +4169,7 @@ var collection = function (CONSTRUCTOR_NAME, wrapper, common, IS_MAP, IS_WEAK) {
     // V8 ~ Chromium 40- weak-collections throws on primitives, but should return false
     var THROWS_ON_PRIMITIVES = fails(function () { instance.has(1); });
     // most early implementations doesn't supports iterables, most modern - not close it correctly
-    // eslint-disable-next-line no-new
+    // eslint--disable-next-line no-new
     var ACCEPT_ITERABLES = checkCorrectnessOfIteration(function (iterable) { new NativeConstructor(iterable); });
     // for early implementations -0 and +0 not the same
     var BUGGY_ZERO = !IS_WEAK && fails(function () {
@@ -5384,7 +5384,7 @@ var nodeUtils = createCommonjsModule(function (module, exports) {
    * @returns the token type
    */
   // ts.Node types are ugly
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint--disable-next-line @typescript-eslint/no-explicit-any
 
   function getTokenType(token) {
     // Need two checks for keywords since some are also identifiers
@@ -5585,7 +5585,7 @@ var nodeUtils = createCommonjsModule(function (module, exports) {
   function nodeHasTokens(n, ast) {
     // If we have a token or node that has a non-zero width, it must have tokens.
     // Note: getWidth() does not take trivia into account.
-    return n.kind === SyntaxKind.EndOfFileToken ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return n.kind === SyntaxKind.EndOfFileToken ? // eslint--disable-next-line @typescript-eslint/no-explicit-any
     !!n.jsDoc : n.getWidth(ast) !== 0;
   }
 
@@ -5665,7 +5665,7 @@ var convert = createCommonjsModule(function (module, exports) {
     value: true
   }); // There's lots of funny stuff due to the typing of ts.Node
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
+  /* eslint--disable @typescript-eslint/no-explicit-any */
 
   var ts = __importStar(typescript); // leave this as * as ts so people using util package don't need syntheticDefaultImports
 
@@ -8486,7 +8486,7 @@ var astConverter_1 = createCommonjsModule(function (module, exports) {
      * source.
      */
     // internal typescript api...
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint--disable-next-line @typescript-eslint/no-explicit-any
     var parseDiagnostics = ast.parseDiagnostics;
 
     if (parseDiagnostics.length) {
@@ -9059,7 +9059,7 @@ var browser = createCommonjsModule(function (module, exports) {
    *
    * TODO: add a `localStorage` variable to explicitly enable/disable colors
    */
-  // eslint-disable-next-line complexity
+  // eslint--disable-next-line complexity
 
   function useColors() {
     // NB: In an Electron preload script, document will be defined but not fully
@@ -9396,7 +9396,7 @@ var node = createCommonjsModule(function (module, exports) {
 
   try {
     // Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
-    // eslint-disable-next-line import/no-extraneous-dependencies
+    // eslint--disable-next-line import/no-extraneous-dependencies
     var supportsColor = supportsColor_1;
 
     if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
@@ -10557,7 +10557,7 @@ var semanticOrSyntacticErrors = createCommonjsModule(function (module, exports) 
        */
 
       /* istanbul ignore next */
-      console.warn(`Warning From TSC: "${e.message}`); // eslint-disable-line no-console
+      console.warn(`Warning From TSC: "${e.message}`); // eslint--disable-line no-console
 
       /* istanbul ignore next */
 

@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "run-p build:*",
-    "build:js": "rollup --config",
+    "build:js": "rollup --config && node ./scripts/fix-code.js",
     "build:package-json": "node ./scripts/sync-version.js",
     "format": "run-p format:*",
     "format:eslint": "yarn lint:eslint --fix",
