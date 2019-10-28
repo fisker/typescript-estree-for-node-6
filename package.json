@@ -33,7 +33,7 @@
     "@fisker/lint-staged-config": "1.0.6",
     "@fisker/prettier-config": "1.0.21",
     "@types/mocha": "5.2.7",
-    "@typescript-eslint/experimental-utils": "2.5.0",
+    "@typescript-eslint/experimental-utils": "2.6.0",
     "@typescript-eslint/typescript-estree": "2.5.0",
     "core-js": "3.3.4",
     "cz-conventional-changelog": "3.0.2",
