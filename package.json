@@ -34,7 +34,7 @@
     "@fisker/prettier-config": "1.0.21",
     "@types/mocha": "5.2.7",
     "@typescript-eslint/experimental-utils": "2.6.1",
-    "@typescript-eslint/typescript-estree": "2.6.0",
+    "@typescript-eslint/typescript-estree": "2.6.1",
     "core-js": "3.3.6",
     "cz-conventional-changelog": "3.0.2",
     "eslint": "6.6.0",
