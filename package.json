@@ -35,7 +35,7 @@
     "@types/mocha": "5.2.7",
     "@typescript-eslint/experimental-utils": "2.6.1",
     "@typescript-eslint/typescript-estree": "2.6.1",
-    "core-js": "3.3.6",
+    "core-js": "3.4.0",
     "cz-conventional-changelog": "3.0.2",
     "eslint": "6.6.0",
     "husky": "3.0.9",
